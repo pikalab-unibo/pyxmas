@@ -1,0 +1,64 @@
+name: deploy
+on:
+  workflow_run:
+    workflows:
+      - check
+    types:
+      - completed
+    branches:
+      - master
+      - main
+      - develop
+env:
+  PROJECT_NAME: my_project
+  WORKFLOW: deploy
+jobs:
+  deploy:
+    concurrency:
+      # Only one release job at a time. Strictly sequential.
+      group: deploy
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Release on PyPi and GitHub
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # all history
+
+      - name: Get All Tags
+        run: git fetch --tags -f
+
+      - name: Get Python Version
+        id: get-python-version
+        run: echo ::set-output name=version::$(cat .python-version)
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ steps.get-python-version.outputs.version }}
+
+      - name: Restore Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Change default logging level
+        run: sed -i -e 's/DEBUG/WARN/g' my_project/__init__.py
+
+      - name: Pack
+        run: python -m build
+
+      - name: Get Node Version
+        id: get-node-version
+        run: echo ::set-output name=version::$(jq -r .engines.node package.json)
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ steps.get-node-version.outputs.version }}
+
+      - name: Release
+        run: |
+          npm install
+          npx semantic-release
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
