@@ -1,0 +1,18 @@
+version: '3.7'
+
+services:
+  xmpp-server:
+    image: ejabberd/ecs:latest
+    environment:
+      - ADMIN_PASSWORD=override_me
+      - CTL_ON_CREATE=register admin localhost $ADMIN_PASSWORD
+      - CTL_ON_START=registered_users localhost ;
+                     status
+    ports:
+      - "5222:5222"
+      - "5269:5269"
+      - "5280:5280"
+      - "5443:5443"
+    volumes:
+      - ./.ejabberd/config.yaml:/home/ejabberd/conf/ejabberd.yml:ro
+      - ./.ejabberd/db:/home/ejabberd/database
