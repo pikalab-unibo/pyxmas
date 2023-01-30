@@ -7,7 +7,7 @@ on:
       - develop
       - 'feature/**'
 env:
-  PROJECT_NAME: my_project
+  PROJECT_NAME: pyxmas
   WORKFLOW: check
 jobs:
   run-unit-tests:

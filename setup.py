@@ -4,7 +4,6 @@ import subprocess
 import distutils.cmd
 
 # current directory
-
 here = pathlib.Path(__file__).parent.resolve()
 
 version_file = here / 'VERSION'
@@ -60,13 +59,13 @@ class GetVersionCommand(distutils.cmd.Command):
         print(version)
 
 setup(
-    name='my_project',  # Required
+    name='pyxmas',  # Required
     version=version,
     description='description here',
     license='Apache 2.0 License',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/aequitas-aod/my_project',
+    url='https://github.com/pikalab-unibo/pyxmas',
     author='Name Surname',
     author_email='name.surname@organization.domain',
     classifiers=[
@@ -77,25 +76,23 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3 :: Only',
-        'Programming Language :: Prolog'
+        'Programming Language :: Python :: 3 :: Only'
     ],
-    keywords='aeuitas, horizon2020, xai, bias',  # Optional
+    keywords='expectation, chistera, xai, mas',  # Optional
     # package_dir={'': 'src'},  # Optional
     packages=find_packages(),  # Required
     include_package_data=True,
-    python_requires='>=3.9.0, <3.10',
+    python_requires='>=3.9.0',
     install_requires=[
-        'scikit-learn>=1.0.2',
-        'pandas>=1.4.2',
+        'spade==3.2.3',
     ],  # Optional
     zip_safe = False,
     platforms = "Independant",
     project_urls={  # Optional
-        'Bug Reports': 'https://github.com/aequitas-aod/my_project/issues',
+        'Bug Reports': 'https://github.com/pikalab-unibo/pyxmas/issues',
         # 'Funding': 'https://donate.pypi.org',
         # 'Say Thanks!': 'http://saythanks.io/to/example',
-        'Source': 'https://github.com/aequitas-aod/my_project',
+        'Source': 'https://github.com/pikalab-unibo/pyxmas',
     },
     cmdclass={
         'get_project_version': GetVersionCommand,

@@ -10,7 +10,7 @@ on:
       - main
       - develop
 env:
-  PROJECT_NAME: my_project
+  PROJECT_NAME: pyxmas
   WORKFLOW: deploy
 jobs:
   deploy:
@@ -42,7 +42,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Change default logging level
-        run: sed -i -e 's/DEBUG/WARN/g' my_project/__init__.py
+        run: sed -i -e 's/DEBUG/WARN/g' pyxmas/__init__.py
 
       - name: Pack
         run: python -m build
