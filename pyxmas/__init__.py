@@ -1,16 +1,45 @@
-import logging
+from ._logging import *
+import spade
+import spade.agent
+import spade.behaviour
 
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('pyxmas')
+class System:
+    def __enter__(self):
+        return self
 
-# this is the initial module of your app
-# this is executed whenever some client-code is calling `import pyxmas` or `from pyxmas import ...`
-# put your main classes here, eg:
-class MyClass:
-    def my_method(self):
-        return "Hello World"
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        spade.quit_spade()
 
 
-# let this be the last line of this file
-logger.info("pyxmas loaded")
+class Agent(spade.agent.Agent):
+
+    def __init__(self, jid: str, password: str, verify_security: bool = False):
+        super().__init__(jid, password, verify_security)
+        self._future = None
+        self.log(LOG_DEBUG, "Created")    
+
+    def __enter__(self):
+        self._future = self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._future.result()
+        self.stop()
+
+    def log(self, level = LOG_INFO, msg = "", *args, **kwargs):
+        logger.log(level, f"[{self.jid}] {msg}", *args, **kwargs)
+
+    async def setup(self):
+        self.log(LOG_DEBUG, "Started")
+
+
+class Behaviour(spade.behaviour.CyclicBehaviour):
+    def log(self, level = LOG_INFO, msg = "", *args, **kwargs):
+        logger.log(level, f"[{self.agent.jid}/{str(self)}] {msg}", *args, **kwargs)
+
+    def set_agent(self, agent) -> None:
+        result = super().set_agent(agent)
+        if agent:
+            self.log(LOG_DEBUG, "Behaviour added", self)
+        return result
