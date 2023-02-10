@@ -20,7 +20,7 @@ class Agent(spade.agent.Agent):
         self.log(LOG_DEBUG, "Created")    
 
     def __enter__(self):
-        self._future = self.start()
+        self._future = self.start(auto_register=True)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -41,5 +41,5 @@ class Behaviour(spade.behaviour.CyclicBehaviour):
     def set_agent(self, agent) -> None:
         result = super().set_agent(agent)
         if agent:
-            self.log(LOG_DEBUG, "Behaviour added", self)
+            self.log(LOG_DEBUG, "Behaviour added")
         return result
