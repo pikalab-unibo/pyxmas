@@ -18,5 +18,5 @@ class DummyAgent(pyxmas.Agent):
 
 
 with pyxmas.System() as system:
-    with DummyAgent("your_jid@your_xmpp_server", "your_password") as dummy:
+    with DummyAgent("admin@localhost", "password") as dummy:
         pass
