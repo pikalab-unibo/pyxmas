@@ -1,5 +1,7 @@
 import logging
 
+__all__ = ['logger', 'enable_logging', 'LOG_DEBUG', 'LOG_INFO', 'LOG_WARNING', 'LOG_ERROR', 'LOG_CRITICAL', 'LOG_FATAL']
+
 
 logger = logging.getLogger('pyxmas')
 logger.setLevel(logging.DEBUG)
@@ -19,5 +21,3 @@ def enable_logging(level:int = LOG_DEBUG, format: str = '%(asctime)s - %(name)s 
     handler.setFormatter(formatter)
     logger.handlers.clear()
     logger.addHandler(handler)
-
-__all__ = ['logger', 'enable_logging', 'LOG_DEBUG', 'LOG_INFO', 'LOG_WARNING', 'LOG_ERROR', 'LOG_CRITICAL', 'LOG_FATAL']
