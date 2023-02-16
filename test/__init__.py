@@ -19,14 +19,14 @@ def random_string(length: int = 16):
 class XmppService:
     def __init__(self, domain: str = _DEFAULT_DOMAIN):
         self._domain = domain
-        self._started = False
+        self._started = self._check_health()
 
     def _run_lazy(self, *args: str):
         p = subprocess.run(list(args), capture_output=True)
         p.check_returncode()
         for line in p.stdout.splitlines():
-            line = line.decode("utf-8")
-            print(line)
+            line = line.decode("utf-8").strip()
+            pyxmas.logger.info(line)
             yield line
 
     def _run(self, *args: str):
@@ -43,7 +43,7 @@ class XmppService:
 
     def start(self):
         if not self._started:
-            self._run("docker", "compose", "up", "-d")
+            self._run("docker", "compose", "up", "--wait")
             self._started = True
         else:
             pyxmas.logger.warning("Silently ignored attempt to start already started service")
@@ -66,6 +66,13 @@ class XmppService:
     def _ensure_started(self):
         if not self._started:
             raise RuntimeError("Service is not started")
+
+    def _check_health(self, msg='is_on'):
+        try:
+            lines = list(self._run_lazy("docker", "compose", "exec", "xmpp-service", "echo", msg))
+            return lines == [msg]
+        except subprocess.CalledProcessError:
+            return False
 
     def add_user(self, username: str, password: str):
         self._ensure_started()

@@ -9,7 +9,12 @@ services:
       - CTL_ON_CREATE=register admin localhost password
       - CTL_ON_START=registered_users localhost ; status
     init: true
-    # command: live
+    healthcheck:
+      test: [ 'CMD-SHELL',  'bin/ejabberdctl status | grep -q "is started with status: started"' ]
+      interval: 10s
+      timeout: 1s
+      retries: 5
+      start_period: 10s
     ports:
       - "5222:5222"
       - "5269:5269"
