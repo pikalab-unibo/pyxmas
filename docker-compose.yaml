@@ -4,6 +4,7 @@ services:
   xmpp-service:
     # https://github.com/processone/docker-ejabberd/tree/master/ecs#readme
     image: ejabberd/ecs:latest
+    platform: linux/amd64
     environment:
       - CTL_ON_CREATE=register admin localhost password
       - CTL_ON_START=registered_users localhost ; status
@@ -16,4 +17,4 @@ services:
       - "5443:5443"
     volumes:
       - ./.ejabberd/config.yaml:/home/ejabberd/conf/ejabberd.yml:ro
-      # - ./.ejabberd/db:/home/ejabberd/database
+#      - ./.ejabberd/db:/home/ejabberd/database

@@ -4,7 +4,7 @@ import subprocess
 import spade.behaviour as sb
 
 
-__all__ = ['XmppService', 'xmpp_serivce' 'random_string', 'TestAgent', 'RecordEventBehaviour']
+__all__ = ['XmppService', 'xmpp_service', 'random_string', 'TestAgent', 'RecordEventBehaviour']
 
 
 _DEFAULT_DOMAIN = 'localhost'
@@ -25,10 +25,9 @@ class XmppService:
         p = subprocess.run(list(args), capture_output=True)
         p.check_returncode()
         for line in p.stdout.splitlines():
-            l = line.decode("utf-8")
-            pyxmas.logger.info(l) 
-            yield l
-
+            line = line.decode("utf-8")
+            print(line)
+            yield line
 
     def _run(self, *args: str):
         for _ in self._run_lazy(*args):
@@ -123,3 +122,6 @@ class RecordEventBehaviour(pyxmas.Behaviour, sb.OneShotBehaviour):
 
     async def run(self):
         self.agent.record_observable_event(self.event)
+
+
+xmpp_service().stop()
