@@ -42,5 +42,15 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Install Docker on MacOS
+        uses: docker-practice/actions-setup-docker@1.0.11
+        if: matrix.os == 'macos-latest'
+        timeout-minutes: 12
+
+      - name: Docker Info
+        run: |
+          docker --version
+          docker compose version
+
       - name: Test
         run: python -m unittest discover -s test -t .

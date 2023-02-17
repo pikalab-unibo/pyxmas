@@ -2,7 +2,6 @@ from typing import Dict, List
 import pyxmas
 import subprocess
 import spade.behaviour as sb
-import sys
 
 __all__ = ['XmppService', 'xmpp_service', 'random_string', 'TestAgent', 'RecordEventBehaviour']
 
@@ -19,10 +18,7 @@ def random_string(length: int = 16):
 
 
 class XmppService:
-    if sys.platform in {"darwin"}:
-        docker = '/usr/local/bin/docker'
-    else:
-        docker = 'docker'
+    docker = 'docker'
 
     def __init__(self, domain: str = _DEFAULT_DOMAIN):
         self._domain = domain
