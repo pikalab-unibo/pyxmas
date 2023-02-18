@@ -16,7 +16,8 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - windows-latest
+          # https://github.com/actions/runner-images/issues/1143
+#          - windows-latest
           - macos-latest
         python-version:
           - '3.8'
@@ -43,9 +44,14 @@ jobs:
           pip install -r requirements.txt
 
       - name: Install Docker on MacOS
-        uses: docker-practice/actions-setup-docker@1.0.11
         if: matrix.os == 'macos-latest'
-        timeout-minutes: 12
+        run: |
+          brew install --cask docker
+          open -a /Applications/Docker.app --args --unattended --accept-license
+          echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
+          while ! docker info &>/dev/null; do echo "Waiting 1 sec"; sleep 1; done
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
 
       - name: Test Docker on Windows
         if: matrix.os == 'windows-latest'
