@@ -19,4 +19,7 @@ class DummyAgent(pyxmas.Agent):
 
 with pyxmas.System() as system:
     with DummyAgent("admin@localhost", "password") as dummy:
-        pass
+        try:
+            dummy.sync_await()
+        except KeyboardInterrupt:
+            dummy.stop()
