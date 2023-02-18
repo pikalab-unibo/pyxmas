@@ -18,7 +18,7 @@ jobs:
           - ubuntu-latest
           # https://github.com/actions/runner-images/issues/1143
 #          - windows-latest
-          - macos-latest
+#          - macos-latest
         python-version:
           - '3.8'
           - '3.9'
@@ -43,6 +43,7 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      # NOT working
       - name: Install Docker on MacOS
         if: matrix.os == 'macos-latest'
         run: |
@@ -52,13 +53,6 @@ jobs:
           while ! docker info &>/dev/null; do echo "Waiting 1 sec"; sleep 1; done
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
-
-      - name: Test Docker on Windows
-        if: matrix.os == 'windows-latest'
-        run: |
-          docker compose up --wait
-          docker compose logs xmpp-service
-          docker compose down
 
       - name: Docker Info
         run: |
