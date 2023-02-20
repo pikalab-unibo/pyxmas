@@ -2,14 +2,15 @@ from typing import Dict, List
 import pyxmas
 import subprocess
 import spade.behaviour as sb
+import unittest
 
-__all__ = ['XmppService', 'xmpp_service', 'random_string', 'TestAgent', 'RecordEventBehaviour']
-
+__all__ = ['XmppService', 'xmpp_service', 'random_string', 'TestAgent', 'RecordEventBehaviour',
+           'SharedXmppServiceTestCase', 'IndividualXmppServiceTestCase']
 
 _DEFAULT_DOMAIN = 'localhost'
 
-
 pyxmas.enable_logging()
+
 
 def random_string(length: int = 16):
     import random
@@ -79,15 +80,19 @@ class XmppService:
 
     def add_user(self, username: str, password: str):
         self._ensure_started()
-        self._run(self.docker, "compose", "exec", "xmpp-service", "bin/ejabberdctl", "register", username, self._domain, password)
+        self._run(self.docker, "compose", "exec", "xmpp-service", "bin/ejabberdctl", "register", username, self._domain,
+                  password)
 
     def remove_user(self, username: str):
         self._ensure_started()
-        self._run(self.docker, "compose", "exec", "xmpp-service", "bin/ejabberdctl", "unregister", username, self._domain)
+        self._run(self.docker, "compose", "exec", "xmpp-service", "bin/ejabberdctl", "unregister", username,
+                  self._domain)
 
     def get_users(self):
         self._ensure_started()
-        return list(self._run_lazy(self.docker, "compose", "exec", "xmpp-service", "bin/ejabberdctl", "registered_users", self._domain))
+        return list(
+            self._run_lazy(self.docker, "compose", "exec", "xmpp-service", "bin/ejabberdctl", "registered_users",
+                           self._domain))
 
 
 _xmpp_serices: Dict[str, XmppService] = {}
@@ -103,7 +108,13 @@ def xmpp_service(domain: str = _DEFAULT_DOMAIN):
 
 
 class TestAgent(pyxmas.Agent):
-    def __init__(self, name: str, password: str = random_string(), domain: str = _DEFAULT_DOMAIN, service: XmppService = None, events: List = []):
+    def __init__(self, name: str,
+                 password: str = random_string(),
+                 domain: str = _DEFAULT_DOMAIN,
+                 service: XmppService = None,
+                 events=None):
+        if events is None:
+            events = []
         if service is None:
             service = xmpp_service(domain)
         service.add_user(name, password)
@@ -132,6 +143,30 @@ class RecordEventBehaviour(pyxmas.Behaviour, sb.OneShotBehaviour):
 
     async def run(self):
         self.agent.record_observable_event(self.event)
+
+
+class SharedXmppServiceTestCase(unittest.TestCase):
+    xmpp_service = xmpp_service()
+
+    @classmethod
+    def setUpClass(cls):
+        cls.xmpp_service.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.xmpp_service.stop()
+
+
+class IndividualXmppServiceTestCase(unittest.TestCase):
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+        self.xmpp_service = xmpp_service()
+
+    def setUp(self):
+        self.xmpp_service.start()
+
+    def tearDown(self):
+        self.xmpp_service.stop()
 
 
 xmpp_service().stop()
