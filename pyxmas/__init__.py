@@ -76,6 +76,22 @@ class Agent(spade.agent.Agent):
         return result
 
 
+def override_spade_functionalities():
+    old_make_reply = spade.message.Message.make_reply
+
+    def make_reply(self, body=None, thread=None, metadata=None):
+        reply = old_make_reply(self)
+        if body is not None:
+            reply.body = body
+        if thread is not None:
+            reply.thread = thread
+        if metadata is not None:
+            reply.metadata = metadata
+        return reply
+
+    spade.message.Message.make_reply = make_reply
+
+
 class Behaviour(spade.behaviour.CyclicBehaviour):
     def __init__(self):
         super().__init__()
@@ -102,9 +118,7 @@ class Behaviour(spade.behaviour.CyclicBehaviour):
             recipient += f"@{self.agent.jid.domain}"
         if thread is None:
             thread = "#".join([str(sender), str(self), self._thread])
-        return spade.agent.Message(to=recipient, sender=str(sender), body=payload, thread=thread, metadata=metadata)
+        return spade.message.Message(to=recipient, sender=str(sender), body=payload, thread=thread, metadata=metadata)
 
 
-# DeprecationWarning: The loop argument is deprecated since Python 3.8, and scheduled for removal in Python 3.10.
-#   self._finished = locks.Event(loop=loop)
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+override_spade_functionalities()

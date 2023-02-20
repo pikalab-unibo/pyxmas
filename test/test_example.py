@@ -60,8 +60,7 @@ class PongerAgent(test.TestAgent):
                 ping = await self.receive(timeout=100)
                 self.log(msg=f'Received message {ping}')
                 self.agent.record_observable_event(f'received_{ping.body}')
-                pong = ping.make_reply()
-                pong.body = 'pong'
+                pong = ping.make_reply(body='pong')
                 self.log(msg=f"Sending message {pong}")
                 await self.send(pong)
                 self.log(msg=f"Sent message {pong}")
