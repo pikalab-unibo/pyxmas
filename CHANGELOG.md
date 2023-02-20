@@ -1,3 +1,15 @@
+## [0.2.0](https://github.com/pikalab-unibo/pyxmas/compare/0.1.2...0.2.0) (2023-02-20)
+
+
+### Features
+
+* test ping pong ([396ef6c](https://github.com/pikalab-unibo/pyxmas/commit/396ef6cd98e0e33736ad7163fa1b37fb07368218))
+
+
+### General maintenance
+
+* **ci:** ignore deprecation warnings when running tests ([9279f41](https://github.com/pikalab-unibo/pyxmas/commit/9279f4196cc7690d75c6d218f5877c56c8063a36))
+
 ## [0.1.2](https://github.com/pikalab-unibo/pyxmas/compare/0.1.1...0.1.2) (2023-02-20)
 
 
