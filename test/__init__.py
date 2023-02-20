@@ -1,21 +1,16 @@
 from typing import Dict, List
 import pyxmas
 import subprocess
+import spade
 import spade.behaviour as sb
 import unittest
 
-__all__ = ['XmppService', 'xmpp_service', 'random_string', 'TestAgent', 'RecordEventBehaviour',
+__all__ = ['XmppService', 'xmpp_service', 'TestAgent', 'RecordEventBehaviour',
            'SharedXmppServiceTestCase', 'IndividualXmppServiceTestCase']
 
 _DEFAULT_DOMAIN = 'localhost'
 
 pyxmas.enable_logging()
-
-
-def random_string(length: int = 16):
-    import random
-    import string
-    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(length))
 
 
 class XmppService:
@@ -109,7 +104,7 @@ def xmpp_service(domain: str = _DEFAULT_DOMAIN):
 
 class TestAgent(pyxmas.Agent):
     def __init__(self, name: str,
-                 password: str = random_string(),
+                 password: str = pyxmas.random_string(),
                  domain: str = _DEFAULT_DOMAIN,
                  service: XmppService = None,
                  events=None):
@@ -130,6 +125,9 @@ class TestAgent(pyxmas.Agent):
     def observable_events(self):
         if self.is_alive():
             raise RuntimeError("Agent is still alive")
+        for e in self._events:
+            if isinstance(e, Exception):
+                raise e
         return self._events
 
     def record_observable_event(self, message):
@@ -155,6 +153,7 @@ class SharedXmppServiceTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.xmpp_service.stop()
+        spade.quit_spade()
 
 
 class IndividualXmppServiceTestCase(unittest.TestCase):
@@ -167,6 +166,10 @@ class IndividualXmppServiceTestCase(unittest.TestCase):
 
     def tearDown(self):
         self.xmpp_service.stop()
+
+    @classmethod
+    def tearDownClass(cls):
+        spade.quit_spade()
 
 
 xmpp_service().stop()
