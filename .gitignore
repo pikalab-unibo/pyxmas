@@ -1,5 +1,7 @@
 VERSION
 
+node_modules/
+
 tmp/
 .idea/
 .vscode/

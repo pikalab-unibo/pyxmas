@@ -43,9 +43,6 @@ jobs:
       - name: Change default logging level
         run: sed -i -e 's/DEBUG/WARN/g' pyxmas/__init__.py
 
-      - name: Pack
-        run: python -m build
-
       - name: Get Node Version
         id: get-node-version
         run: echo ::set-output name=version::$(jq -r .engines.node package.json)
