@@ -61,13 +61,13 @@ class GetVersionCommand(distutils.cmd.Command):
 setup(
     name='pyxmas',  # Required
     version=version,
-    description='description here',
+    description='Explainable multi-agent systems in Python',
     license='Apache 2.0 License',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/pikalab-unibo/pyxmas',
-    author='Name Surname',
-    author_email='name.surname@organization.domain',
+    author='Giovanni Ciatto',
+    author_email='giovanni.ciatto@unibo.it',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
