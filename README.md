@@ -4,7 +4,7 @@ Explainable Multi-Agent Systems in Python, based on [Spade](https://spade-mas.re
 
 ## For users
 
-WIP
+This project is a work in progress, not yet intended for general purpose usage.
 
 ## For developers
 
