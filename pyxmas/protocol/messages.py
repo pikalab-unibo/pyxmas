@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Type
+from typing import Optional, Dict
 
 import aioxmpp
 import spade.message
@@ -8,8 +8,8 @@ from .data import *
 __all__ = ['QueryMessage']
 
 
-class MessageDecorator(spade.message.Message):
-    def __int__(self, delegate: spade.message.Message):
+class MessageDecorator:
+    def __init__(self, delegate: spade.message.Message):
         self._delegate = delegate
 
     @property
@@ -82,10 +82,22 @@ class MessageDecorator(spade.message.Message):
         return self._delegate.__eq__(other)
 
 
+_default_data_types: Types = None
+
+
+def set_default_data_types(types: Types):
+    global _default_data_types
+    _default_data_types = types
+
+
 class BaseProtocolMessage(MessageDecorator):
-    def __int__(self, delegate: spade.message.Message, implementations: Implementations):
+    def __int__(self, delegate: spade.message.Message, impl: Types = None):
         super().__int__(delegate)
-        self._impl = implementations
+        if impl is None:
+            impl = _default_data_types
+        if impl is None:
+            raise ValueError("No data types implementation provided")
+        self._impl = impl
         self.set_metadata("pyxmas.protocol.messages.type", type(self).__name__)
 
     @property
@@ -98,11 +110,23 @@ class BaseProtocolMessage(MessageDecorator):
     def unpack(self, index: int, as_type: type):
         return as_type.parse(self.body.split("\n")[index])
 
+    @classmethod
+    def create(cls,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: Types = None
+               ):
+        return cls(spade.message.Message(to, sender, body, thread, metadata), impl)
+
+    @classmethod
+    def wrap(cls, message: spade.message.Message, impl: Types = None):
+        return cls(message, impl)
+
 
 class QueryMessage(BaseProtocolMessage):
-    def __int__(self, delegate: spade.message.Message, implementations: Implementations):
-        super().__int__(delegate, implementations)
-
     @property
     def query(self):
         return self.unpack(0, self._impl.query_type)

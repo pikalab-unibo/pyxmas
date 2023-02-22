@@ -1,3 +1,6 @@
+__all__ = ["Query", "Recommendation", "Explanation", "Motivation", "Feature", "Types", "Serializable"]
+
+
 class Serializable:
     @classmethod
     def parse(cls, input: str):
@@ -5,6 +8,12 @@ class Serializable:
 
     def serialize(self) -> str:
         str(self)
+
+    def __eq__(self, o: object) -> bool:
+        ...
+
+    def __hash__(self) -> int:
+        ...
 
 
 class Query(Serializable):
@@ -27,7 +36,7 @@ class Feature(Serializable):
     pass
 
 
-class Implementations:
+class Types:
     @property
     def query_type(self):
         return Query
@@ -47,4 +56,3 @@ class Implementations:
     @property
     def feature_type(self):
         return Feature
-
