@@ -7,7 +7,6 @@ import random
 import string
 import asyncio
 import time
-import warnings
 
 
 __all__ = ['System', 'Agent', 'Behaviour', 'enable_logging', 'logger', 'LOG_DEBUG', 'LOG_INFO', 'LOG_WARNING',

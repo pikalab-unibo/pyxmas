@@ -49,7 +49,7 @@ class FeatureString(data.Feature, BaseString):
     pass
 
 
-class Types:
+class Types(data.Types):
     @property
     def query_type(self):
         return QueryString

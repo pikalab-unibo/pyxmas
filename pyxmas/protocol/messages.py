@@ -1,11 +1,54 @@
-from typing import Optional, Dict
-
+from typing import Optional, Dict, Union
+import re
+from functools import lru_cache
 import aioxmpp
 import spade.message
-from .data import *
+import pyxmas.protocol.data as data
+
+__all__ = ['set_default_data_types', 'METADATA_TYPE', 'create_xml_tag', 'QueryMessage', 'RecommendationMessage']
 
 
-__all__ = ['QueryMessage']
+@lru_cache()
+def xml_tag_pattern(name: str):
+    name = re.escape(name)
+    return re.compile(f"<{name}>(.*)</{name}>")
+
+
+def get_xml_tag_value(input: str, name: str):
+    pattern = xml_tag_pattern(name)
+    match = pattern.match(input)
+    if match:
+        m = match.group(1)
+        if m:
+            return m
+        else:
+            return None
+    return None
+
+
+def create_xml_tag(name: str, value: data.Serializable):
+    value = "" if value is None else value.serialize()
+    return f"<{name}>{value}</{name}>"
+
+
+def update_xml_tag_value(input: str, name: str, value: data.Serializable):
+    pattern = xml_tag_pattern(name)
+    new_tag = create_xml_tag(name, value)
+    match = pattern.match(input)
+    if match:
+        return pattern.sub(new_tag, input)
+    elif input:
+        return f"{input}\n{new_tag}"
+    else:
+        return new_tag
+
+
+_default_data_types: data.Types = None
+
+
+def set_default_data_types(types: data.Types):
+    global _default_data_types
+    _default_data_types = types
 
 
 class MessageDecorator:
@@ -82,33 +125,34 @@ class MessageDecorator:
         return self._delegate.__eq__(other)
 
 
-_default_data_types: Types = None
-
-
-def set_default_data_types(types: Types):
-    global _default_data_types
-    _default_data_types = types
+METADATA_TYPE = "pyxmas.protocol.messages.type"
 
 
 class BaseProtocolMessage(MessageDecorator):
-    def __int__(self, delegate: spade.message.Message, impl: Types = None):
-        super().__int__(delegate)
+    def __init__(self, delegate: spade.message.Message, impl: data.Types = None):
+        super().__init__(delegate)
         if impl is None:
             impl = _default_data_types
         if impl is None:
             raise ValueError("No data types implementation provided")
         self._impl = impl
-        self.set_metadata("pyxmas.protocol.messages.type", type(self).__name__)
+        self.set_metadata(METADATA_TYPE, type(self).__name__)
 
     @property
     def type(self):
-        return self.get_metadata("pyxmas.protocol.messages.type")
+        return self.get_metadata(METADATA_TYPE)
 
-    def pack(self, *args):
-        self.body = "\n".join([a.serialize() for a in args])
+    def pack(self, **kwargs):
+        if self.body is None:
+            self.body = ""
+        for name in kwargs:
+            self.body = update_xml_tag_value(self.body, name, kwargs[name])
 
-    def unpack(self, index: int, as_type: type):
-        return as_type.parse(self.body.split("\n")[index])
+    def unpack(self, name: str, as_type: type):
+        value = get_xml_tag_value(self.body, name)
+        if value:
+            return as_type.parse(value)
+        return None
 
     @classmethod
     def create(cls,
@@ -117,20 +161,74 @@ class BaseProtocolMessage(MessageDecorator):
                body: Optional[str] = None,
                thread: Optional[str] = None,
                metadata: Optional[Dict[str, str]] = None,
-               impl: Types = None
-               ):
+               impl: data.Types = None
+               ) -> 'BaseProtocolMessage':
         return cls(spade.message.Message(to, sender, body, thread, metadata), impl)
 
     @classmethod
-    def wrap(cls, message: spade.message.Message, impl: Types = None):
+    def wrap(cls, message: Union[spade.message.Message, MessageDecorator],
+             impl: data.Types = None) -> 'BaseProtocolMessage':
+        while isinstance(message, MessageDecorator):
+            message = message.delegate
         return cls(message, impl)
 
 
-class QueryMessage(BaseProtocolMessage):
+class MessageWithQuery:
     @property
-    def query(self):
-        return self.unpack(0, self._impl.query_type)
+    def query(self) -> data.Query:
+        return self.unpack("query", self._impl.query_type)
 
     @query.setter
-    def query(self, value):
-        self.pack(value)
+    def query(self, value: data.Query):
+        self.pack(query=value)
+
+
+class QueryMessage(BaseProtocolMessage, MessageWithQuery):
+
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               ) -> 'QueryMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl)
+        instance.query = query
+        return instance
+
+    def make_recommendation_reply(self, recommendation: data.Recommendation):
+        reply = self.make_reply()
+        reply = RecommendationMessage.wrap(reply, self._impl)
+        reply.recommendation = recommendation
+        return reply
+
+
+class MessageWithRecommendation:
+    @property
+    def recommendation(self) -> data.Query:
+        return self.unpack("recommendation", self._impl.query_type)
+
+    @recommendation.setter
+    def recommendation(self, value: data.Query):
+        self.pack(recommendation=value)
+
+
+class RecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               ) -> 'RecommendationMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl)
+        instance.query = query
+        instance.recommendation = recommendation
+        return instance
