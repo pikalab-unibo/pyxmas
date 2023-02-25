@@ -5,11 +5,25 @@ import aioxmpp
 import spade.message
 import pyxmas.protocol.data as data
 
-
-__all__ = ['set_default_data_types', 'METADATA_DEPTH', 'METADATA_TYPE', 'create_xml_tag', 'MessageLike', 'QueryMessage',
-           'RecommendationMessage', 'CollisionMessage', 'DisapproveMessage', 'WhyMessage', 'WhyNotMessage',
-           'AcceptMessage', 'ComparisonMessage', 'OverrideRecommendationMessage', 'InvalidAlternativeMessage',
-           'PreferAlternativeMessage', 'MoreDetailsMessage', 'UnclearExplanationMessage']
+__all__ = ['set_default_data_types',
+           'METADATA_DEPTH',
+           'METADATA_TYPE',
+           'create_xml_tag',
+           'MessageLike',
+           'AcceptMessage',
+           'CollisionMessage',
+           'ComparisonMessage',
+           'DisapproveMessage',
+           'InvalidAlternativeMessage',
+           'MoreDetailsMessage',
+           'OverrideRecommendationMessage',
+           'PreferAlternativeMessage',
+           'QueryMessage',
+           'RecommendationMessage',
+           'UnclearExplanationMessage',
+           'WhyMessage',
+           'WhyNotMessage',
+           ]
 
 
 @runtime_checkable
@@ -207,6 +221,10 @@ class BaseProtocolMessage(MessageDecorator):
             self.set_metadata(METADATA_DEPTH, str(depth))
 
     @property
+    def is_terminal(self):
+        return False
+
+    @property
     def depth(self):
         return int(self.get_metadata(METADATA_DEPTH))
 
@@ -279,7 +297,7 @@ class QueryMessage(BaseProtocolMessage, MessageWithQuery):
         instance.query = query
         return instance
 
-    def make_recommendation_reply(self, recommendation: data.Recommendation):
+    def make_recommendation_reply(self, recommendation: data.Recommendation) -> 'RecommendationMessage':
         reply = self.make_reply()
         reply = RecommendationMessage.wrap(reply, self._impl, override_type=True)
         reply.recommendation = recommendation
@@ -298,8 +316,35 @@ class MessageWithRecommendation:
         self.pack(recommendation=value)
 
 
+# noinspection PyUnresolvedReferences
+class MessageWithApproveCapability:
+    def make_accept_reply(self) -> 'AcceptMessage':
+        reply = self.make_reply()
+        reply = AcceptMessage.wrap(reply, self._impl, override_type=True)
+        reply.depth = self.depth + 1
+        return reply
+
+
+# noinspection PyUnresolvedReferences
+class MessageWithComplainCapabilities:
+    def make_collision_reply(self, feature: data.Feature) -> 'CollisionMessage':
+        reply = self.make_reply()
+        reply = CollisionMessage.wrap(reply, self._impl, override_type=True)
+        reply.feature = feature
+        reply.depth = self.depth + 1
+        return reply
+
+    def make_disapprove_reply(self, motivation: data.Motivation) -> 'DisapproveMessage':
+        reply = self.make_reply()
+        reply = DisapproveMessage.wrap(reply, self._impl, override_type=True)
+        reply.motivation = motivation
+        reply.depth = self.depth + 1
+        return reply
+
+
 # noinspection PyMethodOverriding,PyTypeChecker
-class RecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation):
+class RecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation,
+                            MessageWithApproveCapability, MessageWithComplainCapabilities):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -316,6 +361,19 @@ class RecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRe
         instance.query = query
         instance.recommendation = recommendation
         return instance
+
+    def make_why_reply(self) -> 'WhyMessage':
+        reply = self.make_reply()
+        reply = WhyMessage.wrap(reply, self._impl, override_type=True)
+        reply.depth = self.depth + 1
+        return reply
+
+    def make_why_not_reply(self, alternative: data.Recommendation) -> 'WhyNotMessage':
+        reply = self.make_reply()
+        reply = WhyNotMessage.wrap(reply, self._impl, override_type=True)
+        reply.alternative = alternative
+        reply.depth = self.depth + 1
+        return reply
 
 
 # noinspection PyMethodOverriding,PyTypeChecker
@@ -336,6 +394,13 @@ class WhyMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendatio
         instance.query = query
         instance.recommendation = recommendation
         return instance
+
+    def make_more_details_reply(self, explanation: data.Explanation) -> 'MoreDetailsMessage':
+        reply = self.make_reply()
+        reply = MoreDetailsMessage.wrap(reply, self._impl, override_type=True)
+        reply.explanation = explanation
+        reply.depth = self.depth + 1
+        return reply
 
 
 # noinspection PyUnresolvedReferences
@@ -370,6 +435,10 @@ class AcceptMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommenda
         instance.explanation = explanation
         return instance
 
+    @property
+    def is_terminal(self):
+        return True
+
 
 # noinspection PyUnresolvedReferences
 class MessageWithAlternative:
@@ -403,6 +472,20 @@ class WhyNotMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommenda
         instance.alternative = alternative
         return instance
 
+    def make_comparison_reply(self, explanation: data.Explanation) -> 'ComparisonMessage':
+        reply = self.make_reply()
+        reply = ComparisonMessage.wrap(reply, self._impl, override_type=True)
+        reply.explanation = explanation
+        reply.depth = self.depth + 1
+        return reply
+
+    def make_invalid_reply(self, explanation: data.Explanation) -> 'InvalidAlternativeMessage':
+        reply = self.make_reply()
+        reply = InvalidAlternativeMessage.wrap(reply, self._impl, override_type=True)
+        reply.explanation = explanation
+        reply.depth = self.depth + 1
+        return reply
+
 
 # noinspection PyUnresolvedReferences
 class MessageWithFeature:
@@ -415,8 +498,20 @@ class MessageWithFeature:
         self.pack(feature=value)
 
 
+# noinspection PyUnresolvedReferences
+class MessageWithRestartCapability:
+    def make_recommendation_reply(self, recommendation: data.Recommendation) -> 'RecommendationMessage':
+        reply = self.make_reply()
+        reply = RecommendationMessage.wrap(reply, self._impl, override_type=True)
+        reply.body = None
+        reply.recommendation = recommendation
+        reply.depth = self.depth + 1
+        return reply
+
+
 # noinspection PyMethodOverriding,PyTypeChecker
-class CollisionMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithFeature, MessageWithExplanation):
+class CollisionMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithFeature,
+                       MessageWithExplanation, MessageWithRestartCapability):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -451,7 +546,8 @@ class MessageWithMotivation:
 
 
 # noinspection PyMethodOverriding, PyTypeChecker
-class DisapproveMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithMotivation, MessageWithExplanation):
+class DisapproveMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithMotivation,
+                        MessageWithExplanation, MessageWithRestartCapability):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -475,7 +571,8 @@ class DisapproveMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecomm
 
 
 # noinspection PyMethodOverriding, PyTypeChecker
-class MoreDetailsMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithExplanation):
+class MoreDetailsMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithExplanation,
+                         MessageWithApproveCapability, MessageWithComplainCapabilities):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -495,9 +592,17 @@ class MoreDetailsMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecom
         instance.explanation = explanation
         return instance
 
+    def make_unclear_reply(self, explanation: data.Explanation) -> 'UnclearExplanationMessage':
+        reply = self.make_reply()
+        reply = UnclearExplanationMessage.wrap(reply, self._impl, override_type=True)
+        reply.explanation = explanation
+        reply.depth = self.depth + 1
+        return reply
+
 
 # noinspection PyMethodOverriding, PyTypeChecker
-class ComparisonMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative, MessageWithExplanation):
+class ComparisonMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative,
+                        MessageWithExplanation, MessageWithApproveCapability):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -519,9 +624,16 @@ class ComparisonMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecomm
         instance.explanation = explanation
         return instance
 
+    def make_prefer_alternative_reply(self) -> 'PreferAlternativeMessage':
+        reply = self.make_reply()
+        reply = PreferAlternativeMessage.wrap(reply, self._impl, override_type=True)
+        reply.depth = self.depth + 1
+        return reply
+
 
 # noinspection PyMethodOverriding, PyTypeChecker
-class InvalidAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative, MessageWithExplanation):
+class InvalidAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation,
+                                MessageWithAlternative, MessageWithExplanation, MessageWithApproveCapability):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -543,9 +655,16 @@ class InvalidAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWi
         instance.explanation = explanation
         return instance
 
+    def make_override_recommendation_reply(self) -> 'OverrideRecommendationMessage':
+        reply = self.make_reply()
+        reply = OverrideRecommendationMessage.wrap(reply, self._impl, override_type=True)
+        reply.depth = self.depth + 1
+        return reply
+
 
 # noinspection PyMethodOverriding, PyTypeChecker
-class UnclearExplanationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithExplanation):
+class UnclearExplanationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation,
+                                MessageWithExplanation):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -565,9 +684,17 @@ class UnclearExplanationMessage(BaseProtocolMessage, MessageWithQuery, MessageWi
         instance.explanation = explanation
         return instance
 
+    def make_more_details_reply(self, explanation: data.Explanation) -> 'MoreDetailsMessage':
+        reply = self.make_reply()
+        reply = MoreDetailsMessage.wrap(reply, self._impl, override_type=True)
+        reply.explanation = explanation
+        reply.depth = self.depth + 1
+        return reply
+
 
 # noinspection PyMethodOverriding, PyTypeChecker
-class OverrideRecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative):
+class OverrideRecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation,
+                                    MessageWithAlternative):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -587,9 +714,14 @@ class OverrideRecommendationMessage(BaseProtocolMessage, MessageWithQuery, Messa
         instance.alternative = alternative
         return instance
 
+    @property
+    def is_terminal(self):
+        return True
+
 
 # noinspection PyMethodOverriding, PyTypeChecker
-class PreferAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative):
+class PreferAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation,
+                               MessageWithAlternative):
     @classmethod
     def create(cls,
                query: data.Query,
@@ -608,3 +740,7 @@ class PreferAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWit
         instance.recommendation = recommendation
         instance.alternative = alternative
         return instance
+
+    @property
+    def is_terminal(self):
+        return True
