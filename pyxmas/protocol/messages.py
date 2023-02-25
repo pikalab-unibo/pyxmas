@@ -81,8 +81,29 @@ class MessageLike(Protocol):
     def __eq__(self, other) -> bool:
         ...
 
+    def __hash__(self) -> int:
+        ...
+
 
 MessageLike.register(spade.message.Message)
+
+
+def messages_equal(a: MessageLike, b: MessageLike) -> bool:
+    return a is b or (a is not None and b is not None and
+                      a.sender == b.sender and
+                      a.to == b.to and
+                      a.thread == b.thread and
+                      a.metadata == b.metadata and
+                      a.body == b.body
+                      )
+
+
+def message_hash(message: MessageLike) -> int:
+    return hash((message.sender, message.to, message.thread, message.metadata, message.body))
+
+
+spade.message.Message.__eq__ = messages_equal
+spade.message.Message.__hash__ = message_hash
 
 
 @lru_cache()
@@ -108,7 +129,11 @@ def create_xml_tag(name: str, value: data.Serializable):
 def update_xml_tag_value(input: str, name: str, value: data.Serializable):
     pattern = xml_tag_pattern(name)
     for match in pattern.finditer(input):
+        if value is None:
+            return input[:match.start()] + input[match.end():].strip()
         return input[:match.start(1)] + value.serialize() + input[match.end(1):]
+    if value is None:
+        return input
     new_tag = create_xml_tag(name, value)
     if input:
         return f"{input}\n{new_tag}"
@@ -141,6 +166,9 @@ class MessageDecorator(MessageLike):
         return self._delegate.prepare()
 
     def __str__(self) -> str:
+        return str(self._delegate)
+
+    def __repr__(self):
         return str(self._delegate)
 
     @classmethod
@@ -197,7 +225,10 @@ class MessageDecorator(MessageLike):
         return self._delegate.id
 
     def __eq__(self, other):
-        return self._delegate.__eq__(other)
+        return messages_equal(self, other)
+
+    def __hash__(self):
+        return message_hash(self)
 
 
 METADATA_TYPE = "pyxmas.protocol.messages.type"
@@ -504,6 +535,7 @@ class MessageWithRestartCapability:
         reply = self.make_reply()
         reply = RecommendationMessage.wrap(reply, self._impl, override_type=True)
         reply.body = None
+        reply.query = self.query
         reply.recommendation = recommendation
         reply.depth = self.depth + 1
         return reply
