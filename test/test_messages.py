@@ -44,11 +44,11 @@ class TestMessageWrappers(unittest.TestCase):
             SpadeMessage(
                 sender="user@host.any",
                 to="agent@host.any",
-                thread='conversation#1'
+                thread='conversation#1',
+                body=messages.create_xml_tag("query", impl.query_type.parse("question?"))
             ),
             impl
         )
-        msg.query = impl.query_type.parse("question?")
         self.query_message_assertions(msg)
 
 

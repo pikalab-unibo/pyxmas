@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, Protocol, runtime_checkable
 import re
 from functools import lru_cache
 import aioxmpp
@@ -6,6 +6,62 @@ import spade.message
 import pyxmas.protocol.data as data
 
 __all__ = ['set_default_data_types', 'METADATA_TYPE', 'create_xml_tag', 'QueryMessage', 'RecommendationMessage']
+
+
+@runtime_checkable
+class MessageLike(Protocol):
+    @property
+    def sender(self) -> aioxmpp.JID:
+        ...
+
+    @property
+    def to(self) -> aioxmpp.JID:
+        ...
+
+    @property
+    def thread(self) -> str:
+        ...
+
+    @property
+    def metadata(self) -> Dict[str, str]:
+        ...
+
+    @property
+    def body(self) -> str:
+        ...
+
+    @body.setter
+    def body(self, value: str):
+        ...
+
+    def make_reply(self, *args) -> 'MessageLike':
+        ...
+
+    def prepare(self) -> aioxmpp.Message:
+        ...
+
+    def __str__(self) -> str:
+        ...
+
+    @classmethod
+    def from_node(cls, node: aioxmpp.Message) -> 'MessageLike':
+        ...
+
+    def set_metadata(self, key: str, value: str):
+        ...
+
+    def get_metadata(self, key: str) -> str:
+        ...
+
+    def match(self, message) -> bool:
+        ...
+
+    @property
+    def id(self) -> int:
+        ...
+
+    def __eq__(self, other) -> bool:
+        ...
 
 
 @lru_cache()
@@ -51,7 +107,7 @@ def set_default_data_types(types: data.Types):
     _default_data_types = types
 
 
-class MessageDecorator:
+class MessageDecorator(MessageLike):
     def __init__(self, delegate: spade.message.Message):
         self._delegate = delegate
 
