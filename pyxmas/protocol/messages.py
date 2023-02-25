@@ -1,12 +1,15 @@
-from typing import Optional, Dict, Union, Protocol, runtime_checkable
+from typing import Optional, Dict, Protocol, runtime_checkable
 import re
 from functools import lru_cache
 import aioxmpp
 import spade.message
 import pyxmas.protocol.data as data
 
-__all__ = ['set_default_data_types', 'METADATA_TYPE', 'create_xml_tag', 'MessageLike', 'QueryMessage',
-           'RecommendationMessage']
+
+__all__ = ['set_default_data_types', 'METADATA_DEPTH', 'METADATA_TYPE', 'create_xml_tag', 'MessageLike', 'QueryMessage',
+           'RecommendationMessage', 'CollisionMessage', 'DisapproveMessage', 'WhyMessage', 'WhyNotMessage',
+           'AcceptMessage', 'ComparisonMessage', 'OverrideRecommendationMessage', 'InvalidAlternativeMessage',
+           'PreferAlternativeMessage', 'MoreDetailsMessage', 'UnclearExplanationMessage']
 
 
 @runtime_checkable
@@ -131,19 +134,19 @@ class MessageDecorator(MessageLike):
         return MessageDecorator(super().from_node(node))
 
     @property
-    def to(self) -> str:
+    def to(self) -> aioxmpp.JID:
         return self._delegate.to
 
     @to.setter
-    def to(self, value: str):
+    def to(self, value: aioxmpp.JID):
         self._delegate.to = value
 
     @property
-    def sender(self) -> str:
+    def sender(self) -> aioxmpp.JID:
         return self._delegate.sender
 
     @sender.setter
-    def sender(self, value: str):
+    def sender(self, value: aioxmpp.JID):
         self._delegate.sender = value
 
     @property
@@ -184,17 +187,32 @@ class MessageDecorator(MessageLike):
 
 
 METADATA_TYPE = "pyxmas.protocol.messages.type"
+METADATA_DEPTH = "pyxmas.protocol.messages.depth"
 
 
 class BaseProtocolMessage(MessageDecorator):
-    def __init__(self, delegate: MessageLike, impl: data.Types = None):
+    def __init__(self, delegate: MessageLike, impl: data.Types = None, depth: int = None):
         super().__init__(delegate)
         if impl is None:
             impl = _default_data_types
         if impl is None:
             raise ValueError("No data types implementation provided")
         self._impl = impl
-        self.set_metadata(METADATA_TYPE, type(self).__name__)
+        if METADATA_TYPE in self.metadata:
+            assert self.get_metadata(METADATA_TYPE) == type(self).__name__, \
+                f"Attempt to wrap a message of type {self.get_metadata(METADATA_TYPE)} as {type(self).__name__}"
+        else:
+            self.set_metadata(METADATA_TYPE, type(self).__name__)
+        if depth is not None:
+            self.set_metadata(METADATA_DEPTH, str(depth))
+
+    @property
+    def depth(self):
+        return int(self.get_metadata(METADATA_DEPTH))
+
+    @depth.setter
+    def depth(self, value: int):
+        self.set_metadata(METADATA_DEPTH, str(value))
 
     @property
     def type(self):
@@ -212,6 +230,7 @@ class BaseProtocolMessage(MessageDecorator):
             return as_type.parse(value)
         return None
 
+    # noinspection PyTypeChecker
     @classmethod
     def create(cls,
                to: Optional[str] = None,
@@ -219,15 +238,19 @@ class BaseProtocolMessage(MessageDecorator):
                body: Optional[str] = None,
                thread: Optional[str] = None,
                metadata: Optional[Dict[str, str]] = None,
-               impl: data.Types = None
+               impl: data.Types = None,
+               depth: int = 0
                ) -> 'BaseProtocolMessage':
-        return cls(spade.message.Message(to, sender, body, thread, metadata), impl)
+        return cls(spade.message.Message(to, sender, body, thread, metadata), impl, depth)
 
     @classmethod
-    def wrap(cls, message: MessageLike, impl: data.Types = None) -> 'BaseProtocolMessage':
+    def wrap(cls, message: MessageLike, impl: data.Types = None, override_type: bool = False) -> 'BaseProtocolMessage':
+        if override_type:
+            message.set_metadata(METADATA_TYPE, cls.__name__)
         return cls(message, impl)
 
 
+# noinspection PyUnresolvedReferences
 class MessageWithQuery:
     @property
     def query(self) -> data.Query:
@@ -238,6 +261,7 @@ class MessageWithQuery:
         self.pack(query=value)
 
 
+# noinspection PyMethodOverriding,PyTypeChecker
 class QueryMessage(BaseProtocolMessage, MessageWithQuery):
 
     @classmethod
@@ -249,18 +273,21 @@ class QueryMessage(BaseProtocolMessage, MessageWithQuery):
                thread: Optional[str] = None,
                metadata: Optional[Dict[str, str]] = None,
                impl: data.Types = None,
+               depth: int = 0
                ) -> 'QueryMessage':
-        instance = super().create(to, sender, body, thread, metadata, impl)
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
         instance.query = query
         return instance
 
     def make_recommendation_reply(self, recommendation: data.Recommendation):
         reply = self.make_reply()
-        reply = RecommendationMessage.wrap(reply, self._impl)
+        reply = RecommendationMessage.wrap(reply, self._impl, override_type=True)
         reply.recommendation = recommendation
+        reply.depth = self.depth + 1
         return reply
 
 
+# noinspection PyUnresolvedReferences
 class MessageWithRecommendation:
     @property
     def recommendation(self) -> data.Recommendation:
@@ -271,6 +298,7 @@ class MessageWithRecommendation:
         self.pack(recommendation=value)
 
 
+# noinspection PyMethodOverriding,PyTypeChecker
 class RecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation):
     @classmethod
     def create(cls,
@@ -282,8 +310,301 @@ class RecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRe
                thread: Optional[str] = None,
                metadata: Optional[Dict[str, str]] = None,
                impl: data.Types = None,
+               depth: int = 0
                ) -> 'RecommendationMessage':
-        instance = super().create(to, sender, body, thread, metadata, impl)
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
         instance.query = query
         instance.recommendation = recommendation
+        return instance
+
+
+# noinspection PyMethodOverriding,PyTypeChecker
+class WhyMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'WhyMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        return instance
+
+
+# noinspection PyUnresolvedReferences
+class MessageWithExplanation:
+    @property
+    def explanation(self) -> data.Explanation:
+        return self.unpack("explanation", self._impl.explanation_type)
+
+    @explanation.setter
+    def explanation(self, value: data.Explanation):
+        self.pack(explanation=value)
+
+
+# noinspection PyMethodOverriding,PyTypeChecker
+class AcceptMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithExplanation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               explanation: data.Explanation = None,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'AcceptMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.explanation = explanation
+        return instance
+
+
+# noinspection PyUnresolvedReferences
+class MessageWithAlternative:
+    @property
+    def alternative(self) -> data.Recommendation:
+        return self.unpack("alternative", self._impl.recommendation_type)
+
+    @alternative.setter
+    def alternative(self, value: data.Recommendation):
+        self.pack(alternative=value)
+
+
+# noinspection PyMethodOverriding,PyTypeChecker
+class WhyNotMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               alternative: data.Recommendation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'WhyNotMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.alternative = alternative
+        return instance
+
+
+# noinspection PyUnresolvedReferences
+class MessageWithFeature:
+    @property
+    def feature(self) -> data.Feature:
+        return self.unpack("feature", self._impl.feature_type)
+
+    @feature.setter
+    def feature(self, value: data.Feature):
+        self.pack(feature=value)
+
+
+# noinspection PyMethodOverriding,PyTypeChecker
+class CollisionMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithFeature, MessageWithExplanation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               feature: data.Feature,
+               explanation: data.Explanation = None,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'CollisionMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.feature = feature
+        instance.explanation = explanation
+        return instance
+
+
+# noinspection PyUnresolvedReferences
+class MessageWithMotivation:
+    @property
+    def motivation(self) -> data.Motivation:
+        return self.unpack("motivation", self._impl.motivation_type)
+
+    @motivation.setter
+    def motivation(self, value: data.Motivation):
+        self.pack(motivation=value)
+
+
+# noinspection PyMethodOverriding, PyTypeChecker
+class DisapproveMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithMotivation, MessageWithExplanation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               motivation: data.Motivation,
+               explanation: data.Explanation = None,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'DisapproveMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.motivation = motivation
+        instance.explanation = explanation
+        return instance
+
+
+# noinspection PyMethodOverriding, PyTypeChecker
+class MoreDetailsMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithExplanation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               explanation: data.Explanation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'MoreDetailsMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.explanation = explanation
+        return instance
+
+
+# noinspection PyMethodOverriding, PyTypeChecker
+class ComparisonMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative, MessageWithExplanation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               alternative: data.Recommendation,
+               explanation: data.Explanation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'ComparisonMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.alternative = alternative
+        instance.explanation = explanation
+        return instance
+
+
+# noinspection PyMethodOverriding, PyTypeChecker
+class InvalidAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative, MessageWithExplanation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               alternative: data.Recommendation,
+               explanation: data.Explanation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'InvalidAlternativeMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.alternative = alternative
+        instance.explanation = explanation
+        return instance
+
+
+# noinspection PyMethodOverriding, PyTypeChecker
+class UnclearExplanationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithExplanation):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               explanation: data.Explanation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'UnclearExplanationMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.explanation = explanation
+        return instance
+
+
+# noinspection PyMethodOverriding, PyTypeChecker
+class OverrideRecommendationMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               alternative: data.Explanation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'OverrideRecommendationMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.alternative = alternative
+        return instance
+
+
+# noinspection PyMethodOverriding, PyTypeChecker
+class PreferAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommendation, MessageWithAlternative):
+    @classmethod
+    def create(cls,
+               query: data.Query,
+               recommendation: data.Recommendation,
+               alternative: data.Explanation,
+               to: Optional[str] = None,
+               sender: Optional[str] = None,
+               body: Optional[str] = None,
+               thread: Optional[str] = None,
+               metadata: Optional[Dict[str, str]] = None,
+               impl: data.Types = None,
+               depth: int = 0
+               ) -> 'PreferAlternativeMessage':
+        instance = super().create(to, sender, body, thread, metadata, impl, depth)
+        instance.query = query
+        instance.recommendation = recommendation
+        instance.alternative = alternative
         return instance

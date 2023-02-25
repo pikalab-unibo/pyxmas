@@ -31,7 +31,8 @@ class TestMessageWrappers(unittest.TestCase):
         self.assertEqual(msg.to, jid(to))
         self.assertEqual(msg.sender, jid(sender))
         self.assertEqual(msg.thread, thread)
-        self.assertEqual(msg.metadata, {messages.METADATA_TYPE: messages.QueryMessage.__name__})
+        self.assertEqual(msg.type, messages.QueryMessage.__name__)
+        self.assertEqual(msg.depth, 0)
         self.assertEqual(msg.query, self.parse_query(query))
         self.assertTrue(messages.create_xml_tag("query", self.parse_query(query)) in msg.body)
         msg.query = self.parse_query(query2)
@@ -46,7 +47,8 @@ class TestMessageWrappers(unittest.TestCase):
             to="agent@host.any",
             impl=self._impl,
             query=self.parse_query("question?"),
-            thread='conversation#1'
+            thread='conversation#1',
+            depth=0
         )
         self.query_message_assertions(msg)
 
@@ -56,7 +58,11 @@ class TestMessageWrappers(unittest.TestCase):
                 sender="user@host.any",
                 to="agent@host.any",
                 thread='conversation#1',
-                body=messages.create_xml_tag("query", self.parse_query("question?"))
+                body=messages.create_xml_tag("query", self.parse_query("question?")),
+                metadata={
+                    messages.METADATA_TYPE: messages.QueryMessage.__name__,
+                    messages.METADATA_DEPTH: "0"
+                }
             ),
             self._impl
         )
@@ -72,7 +78,8 @@ class TestMessageWrappers(unittest.TestCase):
         self.assertEqual(msg.to, jid(to))
         self.assertEqual(msg.sender, jid(sender))
         self.assertEqual(msg.thread, thread)
-        self.assertEqual(msg.metadata, {messages.METADATA_TYPE: messages.RecommendationMessage.__name__})
+        self.assertEqual(msg.type, messages.RecommendationMessage.__name__)
+        self.assertEqual(msg.depth, 1)
         self.assertEqual(msg.query, self.parse_query(query))
         self.assertEqual(msg.recommendation, self.parse_recommendation(recommendation))
         self.assertTrue(messages.create_xml_tag("query", self.parse_query(query)) in msg.body)
@@ -92,7 +99,8 @@ class TestMessageWrappers(unittest.TestCase):
             impl=self._impl,
             query=self.parse_query("question?"),
             recommendation=self.parse_recommendation("answer!"),
-            thread='conversation#1'
+            thread='conversation#1',
+            depth=1
         )
         self.recommendation_message_assertions(msg)
 
@@ -105,7 +113,11 @@ class TestMessageWrappers(unittest.TestCase):
                 body=f"""
                 {messages.create_xml_tag("query", self.parse_query("question?"))}
                 {messages.create_xml_tag("recommendation", self.parse_query("answer!"))}
-                """
+                """,
+                metadata={
+                    messages.METADATA_TYPE: messages.RecommendationMessage.__name__,
+                    messages.METADATA_DEPTH: "1"
+                }
             ),
             self._impl
         )
