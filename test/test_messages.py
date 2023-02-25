@@ -1,10 +1,9 @@
 import unittest
 import pyxmas.protocol.messages as messages
+import pyxmas.protocol.data as data
 import pyxmas.protocol.data.strings as strings
 from spade.message import Message as SpadeMessage
 import aioxmpp
-
-impl = strings.Types()
 
 
 def jid(string: str) -> aioxmpp.JID:
@@ -13,28 +12,40 @@ def jid(string: str) -> aioxmpp.JID:
 
 class TestMessageWrappers(unittest.TestCase):
 
-    def query_message_assertions(self, msg, query="question?", query2="another_question?", sender="user@host.any",
-                                 to="agent@host.any", thread="conversation#1"):
+    def __init__(self, methodName='runTest', impl: data.Types = strings.Types()):
+        super().__init__(methodName)
+        self._impl = impl
+
+    def parse_query(self, string):
+        return self._impl.query_type.parse(string)
+
+    def parse_recommendation(self, string):
+        return self._impl.recommendation_type.parse(string)
+
+    def query_message_assertions(self, msg: messages.MessageLike, query="question?", query2="another_question?",
+                                 sender="user@host.any", to="agent@host.any", thread="conversation#1"):
+        self.assertIsInstance(msg, messages.MessageLike)
         self.assertIsInstance(msg, messages.QueryMessage)
+        self.assertIsInstance(msg.delegate, messages.MessageLike)
         self.assertIsInstance(msg.delegate, SpadeMessage)
         self.assertEqual(msg.to, jid(to))
         self.assertEqual(msg.sender, jid(sender))
         self.assertEqual(msg.thread, thread)
         self.assertEqual(msg.metadata, {messages.METADATA_TYPE: messages.QueryMessage.__name__})
-        self.assertEqual(msg.query, impl.query_type.parse(query))
-        self.assertTrue(messages.create_xml_tag("query", impl.query_type.parse(query)) in msg.body)
-        msg.query = impl.query_type.parse(query2)
-        self.assertNotEqual(msg.query, impl.query_type.parse(query))
-        self.assertFalse(messages.create_xml_tag("query", impl.query_type.parse(query)) in msg.body)
-        self.assertEqual(msg.query, impl.query_type.parse(query2))
-        self.assertTrue(messages.create_xml_tag("query", impl.query_type.parse(query2)) in msg.body)
+        self.assertEqual(msg.query, self.parse_query(query))
+        self.assertTrue(messages.create_xml_tag("query", self.parse_query(query)) in msg.body)
+        msg.query = self.parse_query(query2)
+        self.assertNotEqual(msg.query, self.parse_query(query))
+        self.assertFalse(messages.create_xml_tag("query", self.parse_query(query)) in msg.body)
+        self.assertEqual(msg.query, self.parse_query(query2))
+        self.assertTrue(messages.create_xml_tag("query", self.parse_query(query2)) in msg.body)
 
     def test_query_message_creation(self):
         msg = messages.QueryMessage.create(
             sender="user@host.any",
             to="agent@host.any",
-            impl=impl,
-            query=impl.query_type.parse("question?"),
+            impl=self._impl,
+            query=self.parse_query("question?"),
             thread='conversation#1'
         )
         self.query_message_assertions(msg)
@@ -45,11 +56,71 @@ class TestMessageWrappers(unittest.TestCase):
                 sender="user@host.any",
                 to="agent@host.any",
                 thread='conversation#1',
-                body=messages.create_xml_tag("query", impl.query_type.parse("question?"))
+                body=messages.create_xml_tag("query", self.parse_query("question?"))
             ),
-            impl
+            self._impl
         )
         self.query_message_assertions(msg)
+
+    def recommendation_message_assertions(self, msg: messages.MessageLike, query="question?", recommendation="answer!",
+                                          recommendation2="another_answer!", sender="agent@host.any",
+                                          to="user@host.any", thread="conversation#1"):
+        self.assertIsInstance(msg, messages.MessageLike)
+        self.assertIsInstance(msg, messages.RecommendationMessage)
+        self.assertIsInstance(msg.delegate, messages.MessageLike)
+        self.assertIsInstance(msg.delegate, SpadeMessage)
+        self.assertEqual(msg.to, jid(to))
+        self.assertEqual(msg.sender, jid(sender))
+        self.assertEqual(msg.thread, thread)
+        self.assertEqual(msg.metadata, {messages.METADATA_TYPE: messages.RecommendationMessage.__name__})
+        self.assertEqual(msg.query, self.parse_query(query))
+        self.assertEqual(msg.recommendation, self.parse_recommendation(recommendation))
+        self.assertTrue(messages.create_xml_tag("query", self.parse_query(query)) in msg.body)
+        self.assertTrue(messages.create_xml_tag("recommendation", self.parse_recommendation(recommendation)) in msg.body)
+        msg.recommendation = self.parse_recommendation(recommendation2)
+        self.assertEqual(msg.query, self.parse_query(query))
+        self.assertNotEqual(msg.recommendation, self.parse_recommendation(recommendation))
+        self.assertTrue(messages.create_xml_tag("query", self.parse_query(query)) in msg.body)
+        self.assertFalse(messages.create_xml_tag("recommendation", self.parse_recommendation(recommendation)) in msg.body)
+        self.assertEqual(msg.recommendation, self.parse_recommendation(recommendation2))
+        self.assertTrue(messages.create_xml_tag("recommendation", self.parse_recommendation(recommendation2)) in msg.body)
+
+    def test_recommendation_message_creation(self):
+        msg = messages.RecommendationMessage.create(
+            sender="agent@host.any",
+            to="user@host.any",
+            impl=self._impl,
+            query=self.parse_query("question?"),
+            recommendation=self.parse_recommendation("answer!"),
+            thread='conversation#1'
+        )
+        self.recommendation_message_assertions(msg)
+
+    def test_recommendation_message_wrapping(self):
+        msg = messages.RecommendationMessage.wrap(
+            SpadeMessage(
+                sender="agent@host.any",
+                to="user@host.any",
+                thread='conversation#1',
+                body=f"""
+                {messages.create_xml_tag("query", self.parse_query("question?"))}
+                {messages.create_xml_tag("recommendation", self.parse_query("answer!"))}
+                """
+            ),
+            self._impl
+        )
+        self.recommendation_message_assertions(msg)
+
+    def test_recommendation_message_from_query(self):
+        msg = messages.QueryMessage.create(
+            sender="user@host.any",
+            to="agent@host.any",
+            impl=self._impl,
+            query=self.parse_query("question?"),
+            thread='conversation#1'
+        )
+        msg = msg.make_recommendation_reply(self.parse_recommendation("answer!"))
+        self.recommendation_message_assertions(msg)
 
 
 if __name__ == '__main__':
