@@ -16,7 +16,7 @@ class BaseString(data.Serializable):
         return self._content
 
     def __eq__(self, other):
-        return self._content == other.content
+        return other is not None and self._content == other.content
 
     def __hash__(self):
         return hash(self._content)

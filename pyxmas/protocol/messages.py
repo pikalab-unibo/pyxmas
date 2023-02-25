@@ -5,7 +5,8 @@ import aioxmpp
 import spade.message
 import pyxmas.protocol.data as data
 
-__all__ = ['set_default_data_types', 'METADATA_TYPE', 'create_xml_tag', 'QueryMessage', 'RecommendationMessage']
+__all__ = ['set_default_data_types', 'METADATA_TYPE', 'create_xml_tag', 'MessageLike', 'QueryMessage',
+           'RecommendationMessage']
 
 
 @runtime_checkable
@@ -64,21 +65,21 @@ class MessageLike(Protocol):
         ...
 
 
+MessageLike.register(spade.message.Message)
+
+
 @lru_cache()
 def xml_tag_pattern(name: str):
     name = re.escape(name)
-    return re.compile(f"<{name}>(.*)</{name}>")
+    return re.compile(f"<{name}>(.*?)</{name}>", re.DOTALL | re.MULTILINE)
 
 
 def get_xml_tag_value(input: str, name: str):
     pattern = xml_tag_pattern(name)
-    match = pattern.match(input)
-    if match:
-        m = match.group(1)
-        if m:
-            return m
-        else:
-            return None
+    for match in pattern.finditer(input):
+        content = match.group(1)
+        if content:
+            return content
     return None
 
 
@@ -89,11 +90,10 @@ def create_xml_tag(name: str, value: data.Serializable):
 
 def update_xml_tag_value(input: str, name: str, value: data.Serializable):
     pattern = xml_tag_pattern(name)
+    for match in pattern.finditer(input):
+        return input[:match.start(1)] + value.serialize() + input[match.end(1):]
     new_tag = create_xml_tag(name, value)
-    match = pattern.match(input)
-    if match:
-        return pattern.sub(new_tag, input)
-    elif input:
+    if input:
         return f"{input}\n{new_tag}"
     else:
         return new_tag
@@ -108,7 +108,9 @@ def set_default_data_types(types: data.Types):
 
 
 class MessageDecorator(MessageLike):
-    def __init__(self, delegate: spade.message.Message):
+    def __init__(self, delegate: MessageLike):
+        while isinstance(delegate, MessageDecorator):
+            delegate = delegate.delegate
         self._delegate = delegate
 
     @property
@@ -185,7 +187,7 @@ METADATA_TYPE = "pyxmas.protocol.messages.type"
 
 
 class BaseProtocolMessage(MessageDecorator):
-    def __init__(self, delegate: spade.message.Message, impl: data.Types = None):
+    def __init__(self, delegate: MessageLike, impl: data.Types = None):
         super().__init__(delegate)
         if impl is None:
             impl = _default_data_types
@@ -222,10 +224,7 @@ class BaseProtocolMessage(MessageDecorator):
         return cls(spade.message.Message(to, sender, body, thread, metadata), impl)
 
     @classmethod
-    def wrap(cls, message: Union[spade.message.Message, MessageDecorator],
-             impl: data.Types = None) -> 'BaseProtocolMessage':
-        while isinstance(message, MessageDecorator):
-            message = message.delegate
+    def wrap(cls, message: MessageLike, impl: data.Types = None) -> 'BaseProtocolMessage':
         return cls(message, impl)
 
 
@@ -264,11 +263,11 @@ class QueryMessage(BaseProtocolMessage, MessageWithQuery):
 
 class MessageWithRecommendation:
     @property
-    def recommendation(self) -> data.Query:
-        return self.unpack("recommendation", self._impl.query_type)
+    def recommendation(self) -> data.Recommendation:
+        return self.unpack("recommendation", self._impl.recommendation_type)
 
     @recommendation.setter
-    def recommendation(self, value: data.Query):
+    def recommendation(self, value: data.Recommendation):
         self.pack(recommendation=value)
 
 
