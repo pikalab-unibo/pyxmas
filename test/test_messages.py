@@ -343,6 +343,61 @@ class TestMessageWrappers(unittest.TestCase):
         self.assertEqual(msg, self.new_recommendation)
         self.assertFalse(msg.is_terminal)
 
+    def test_more_details_message_from_why(self):
+        msg = self.why_message.make_more_details_reply(self.parse_explanation("quick_and_dirty_explanation"))
+        self.assertEqual(msg, self.explanation1)
+        self.assertFalse(msg.is_terminal)
+
+    def test_comparison_message_from_why_not(self):
+        msg = self.why_not_message.make_comparison_reply(self.parse_explanation("answer_is_better"))
+        self.assertEqual(msg, self.comparison)
+        self.assertFalse(msg.is_terminal)
+
+    def test_invalid_alternative_message_from_why_not(self):
+        msg = self.why_not_message.make_invalid_alternative_reply(self.parse_explanation("another_answer_is_invalid"))
+        self.assertEqual(msg, self.invalid)
+        self.assertFalse(msg.is_terminal)
+
+    def test_unclear_explanation_message_from_why_not(self):
+        msg = self.explanation1.make_unclear_reply()
+        self.assertEqual(msg, self.unclear)
+        self.assertFalse(msg.is_terminal)
+
+    def test_accept_message_from_more_details(self):
+        msg = self.explanation1.make_accept_reply()
+        self.assertEqual(msg, self.accept_recommendation_after_explanation)
+        self.assertTrue(msg.is_terminal)
+
+    def test_collision_message_from_more_details(self):
+        msg = self.explanation1.make_collision_reply(self.parse_feature("i_dont_really_like_answer"))
+        self.assertEqual(msg, self.recommendation_collides_after_explanation)
+        self.assertFalse(msg.is_terminal)
+
+    def test_disapprove_message_from_more_details(self):
+        msg = self.explanation1.make_disapprove_reply(self.parse_motivation("answer_is_shitty!"))
+        self.assertEqual(msg, self.disapprove_recommendation_after_explanation)
+        self.assertFalse(msg.is_terminal)
+
+    def test_accept_message_from_comparison(self):
+        msg = self.comparison.make_accept_reply()
+        self.assertEqual(msg, self.accept_recommendation_after_comparison)
+        self.assertTrue(msg.is_terminal)
+
+    def test_prefer_alternative_message_from_comparison(self):
+        msg = self.comparison.make_prefer_alternative_reply()
+        self.assertEqual(msg, self.prefer_alternative_after_comparison)
+        self.assertTrue(msg.is_terminal)
+
+    def test_override_message_from_invalid(self):
+        msg = self.invalid.make_override_recommendation_reply()
+        self.assertEqual(msg, self.override_invalid_recommendation)
+        self.assertTrue(msg.is_terminal)
+
+    def test_more_details_message_from_unclear(self):
+        msg = self.unclear.make_more_details_reply(self.parse_explanation("detailed_explanation"))
+        self.assertEqual(msg, self.explanation2)
+        self.assertFalse(msg.is_terminal)
+
 
 if __name__ == '__main__':
     unittest.main()
