@@ -1,3 +1,4 @@
+from typing import Optional
 from ._logging import *
 import spade
 import spade.agent
@@ -7,6 +8,7 @@ import random
 import string
 import asyncio
 import time
+import sys
 
 
 __all__ = ['System', 'Agent', 'Behaviour', 'enable_logging', 'logger', 'LOG_DEBUG', 'LOG_INFO', 'LOG_WARNING',
@@ -92,9 +94,13 @@ def override_spade_functionalities():
 
 
 class Behaviour(spade.behaviour.CyclicBehaviour):
-    def __init__(self):
+    def __init__(self, thread: str = None):
         super().__init__()
-        self._thread = random_string()
+        self._thread = random_string() if thread is None else thread
+
+    @property
+    def thread(self):
+        return self._thread
 
     def log(self, level=LOG_INFO, msg="", *args, **kwargs):
         logger.log(level, f"[{self.agent.jid}/{str(self)}] {msg}", *args, **kwargs)
@@ -105,6 +111,9 @@ class Behaviour(spade.behaviour.CyclicBehaviour):
         if agent and agent != old_agent:
             self.log(LOG_DEBUG, "Behaviour added")
         return result
+
+    async def receive(self, timeout: Optional[float] = sys.float_info.max) -> Optional[spade.message.Message]:
+        return await super().receive(timeout)
 
     def new_message(self,
                     recipient: str,

@@ -32,7 +32,7 @@ class PingerAgent(test.TestAgent):
                 self.log(msg=f"Sent message {message}")
                 self.agent.record_observable_event('sent_ping')
                 self.log(msg=f"Receiving message matching {self.template}")
-                pong = await self.receive(timeout=100)
+                pong = await self.receive()
                 self.log(msg=f'Received message {pong}')
                 self.agent.record_observable_event(f'received_{pong.body}')
             except Exception as e:
@@ -57,7 +57,7 @@ class PongerAgent(test.TestAgent):
         async def run(self) -> None:
             try:
                 self.log(msg=f"Receiving message matching {self.template}")
-                ping = await self.receive(timeout=100)
+                ping = await self.receive()
                 self.log(msg=f'Received message {ping}')
                 self.agent.record_observable_event(f'received_{ping.body}')
                 pong = ping.make_reply(body='pong')
