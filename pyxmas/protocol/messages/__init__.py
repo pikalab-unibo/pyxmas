@@ -197,6 +197,10 @@ class MessageDecorator(MessageLike):
 
     @body.setter
     def body(self, value: str):
+        if value and "\n" in value:
+            lines = value.split("\n")
+            lines.sort()
+            value = "\n".join(lines)
         self._delegate.body = value
 
     @property
@@ -510,7 +514,7 @@ class WhyNotMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecommenda
         reply.depth = self.depth + 1
         return reply
 
-    def make_invalid_reply(self, explanation: data.Explanation) -> 'InvalidAlternativeMessage':
+    def make_invalid_alternative_reply(self, explanation: data.Explanation) -> 'InvalidAlternativeMessage':
         reply = self.make_reply()
         reply = InvalidAlternativeMessage.wrap(reply, self._impl, override_type=True)
         reply.explanation = explanation
@@ -624,10 +628,9 @@ class MoreDetailsMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecom
         instance.explanation = explanation
         return instance
 
-    def make_unclear_reply(self, explanation: data.Explanation) -> 'UnclearExplanationMessage':
+    def make_unclear_reply(self) -> 'UnclearExplanationMessage':
         reply = self.make_reply()
         reply = UnclearExplanationMessage.wrap(reply, self._impl, override_type=True)
-        reply.explanation = explanation
         reply.depth = self.depth + 1
         return reply
 
@@ -656,9 +659,21 @@ class ComparisonMessage(BaseProtocolMessage, MessageWithQuery, MessageWithRecomm
         instance.explanation = explanation
         return instance
 
+    def make_accept_reply(self) -> 'AcceptMessage':
+        reply = super().make_accept_reply()
+        reply.body = None
+        reply.query = self.query
+        reply.recommendation = self.recommendation
+        reply.explanation = self.explanation
+        return reply
+
     def make_prefer_alternative_reply(self) -> 'PreferAlternativeMessage':
         reply = self.make_reply()
         reply = PreferAlternativeMessage.wrap(reply, self._impl, override_type=True)
+        reply.body = None
+        reply.query = self.query
+        reply.recommendation = self.recommendation
+        reply.alternative = self.alternative
         reply.depth = self.depth + 1
         return reply
 
@@ -690,6 +705,10 @@ class InvalidAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWi
     def make_override_recommendation_reply(self) -> 'OverrideRecommendationMessage':
         reply = self.make_reply()
         reply = OverrideRecommendationMessage.wrap(reply, self._impl, override_type=True)
+        reply.body = None
+        reply.query = self.query
+        reply.recommendation = self.recommendation
+        reply.alternative = self.alternative
         reply.depth = self.depth + 1
         return reply
 
