@@ -1,0 +1,18 @@
+package data {
+    interface Serializable {
+        + {static} parse(input)
+        + serialize(): str
+    }
+
+    interface Query
+    interface Recommendation
+    interface Explanation
+    interface Motivation
+    interface Feature
+
+    Serializable <|-right- Query
+    Serializable <|-left- Recommendation
+    Serializable <|-up- Explanation
+    Serializable <|-down- Motivation
+    Serializable <|-down- Feature
+}

@@ -1,0 +1,109 @@
+package protocol {
+
+    interface QueryMessage {
+        + query: Query
+    }
+
+    QueryMessage <.d. RecommendationMessage
+
+    interface RecommendationMessage {
+        + query: Query
+        + recommendation: Recommendation
+    }
+
+    RecommendationMessage <.d. WhyMessage
+    RecommendationMessage <.d. WhyNotMessage
+    RecommendationMessage <.d. AcceptMessage
+    RecommendationMessage <.d. CollisionMessage
+    RecommendationMessage <.d. DisapproveMessage
+
+    interface WhyMessage {
+        + query: Query
+        + recommendation: Recommendation
+    }
+
+    WhyMessage <.d. MoreDetailsMessage
+
+    interface WhyNotMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+    }
+
+    WhyNotMessage <.d. ComparisonMessage
+    WhyNotMessage <.d. InvalidAlternativeMessage
+
+    interface AcceptMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + explanation: Explanation
+    }
+
+    interface CollisionMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + feature: Feature
+        + explanation: Explanation
+    }
+
+    CollisionMessage <.. RecommendationMessage
+
+    interface DisapproveMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + motivation: Motivation
+    }
+
+    DisapproveMessage <.. RecommendationMessage
+
+    interface MoreDetailsMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + explanation: Explanation
+    }
+
+    MoreDetailsMessage <.d. UnclearExplanationMessage
+    MoreDetailsMessage <.. DisapproveMessage
+    MoreDetailsMessage <.. CollisionMessage
+    MoreDetailsMessage <.. AcceptMessage
+
+    interface ComparisonMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+        + explanation: Explanation
+    }
+
+    ComparisonMessage <.d. PreferAlternativeMessage
+    ComparisonMessage <.. AcceptMessage
+
+    interface InvalidAlternativeMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+        + explanation: Explanation
+    }
+
+    InvalidAlternativeMessage <.. AcceptMessage
+    InvalidAlternativeMessage <.d. OverrideRecommendationMessage
+
+    interface OverrideRecommendationMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+    }
+
+    interface PreferAlternativeMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+    }
+
+    interface UnclearExplanationMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + explanation: Explanation
+    }
+
+    UnclearExplanationMessage <.. MoreDetailsMessage
+}

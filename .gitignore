@@ -2,6 +2,8 @@ VERSION
 
 node_modules/
 
+*.png
+
 tmp/
 .idea/
 .vscode/

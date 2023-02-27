@@ -1,0 +1,17 @@
+hide footbox
+actor Explainee
+control Recommender
+
+Explainee -> Recommender: **QueryMessage**(Q)
+
+loop
+
+    Recommender -> Explainee: **RecommendationMessage**(Q, R)
+
+    alt R collides with Explainee's feature F
+        Explainee -> Recommender: **CollisionMessage**(Q, R, F)
+    else Explainee disapproves R because of M
+        Explainee -> Recommender: **DisapproveMessage**(Q, R, M)
+    end
+
+end

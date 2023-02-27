@@ -1,0 +1,8 @@
+hide footbox
+actor Explainee
+control Recommender
+
+
+Explainee -> Recommender: **QueryMessage**(Q)
+Recommender -> Explainee: **RecommendationMessage**(Q, R)
+Explainee -> Recommender: **AcceptMessage**(Q, R)

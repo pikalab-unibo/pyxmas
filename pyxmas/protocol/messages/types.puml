@@ -1,0 +1,109 @@
+package protocol {
+
+    interface MessageLike {
+        + sender: JID
+        + to: JID
+        + thread: str
+        + metadata: Dict[str, str]
+        + body: str
+    }
+
+    interface BaseProtocolMessage {
+        + depth: int
+        + type: str
+        + {static} create(to, sender, body, thread, metadata, depth)
+        + {static} wrap(message)
+    }
+
+    interface QueryMessage {
+        + query: Query
+    }
+
+    interface RecommendationMessage {
+        + query: Query
+        + recommendation: Recommendation
+    }
+
+    interface WhyMessage {
+        + query: Query
+        + recommendation: Recommendation
+    }
+
+    interface WhyNotMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+    }
+
+    interface AcceptMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + explanation: Explanation
+    }
+
+    interface CollisionMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + feature: Feature
+        + explanation: Explanation
+    }
+
+    interface DisapproveMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + motivation: Motivation
+    }
+
+    interface MoreDetailsMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + explanation: Explanation
+    }
+
+    interface ComparisonMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+        + explanation: Explanation
+    }
+
+    interface InvalidAlternativeMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+        + explanation: Explanation
+    }
+
+    interface OverrideRecommendationMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+    }
+
+    interface PreferAlternativeMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + alternative: Recommendation
+    }
+
+    interface UnclearExplanationMessage {
+        + query: Query
+        + recommendation: Recommendation
+        + explanation: Explanation
+    }
+
+    MessageLike <|- BaseProtocolMessage
+    BaseProtocolMessage <|-r- AcceptMessage
+    BaseProtocolMessage <|-r- CollisionMessage
+    BaseProtocolMessage <|-l- ComparisonMessage
+    BaseProtocolMessage <|-l- DisapproveMessage
+    BaseProtocolMessage <|-u- InvalidAlternativeMessage
+    BaseProtocolMessage <|-u- MoreDetailsMessage
+    BaseProtocolMessage <|-d- OverrideRecommendationMessage
+    BaseProtocolMessage <|-d- PreferAlternativeMessage
+    BaseProtocolMessage <|-r- QueryMessage
+    BaseProtocolMessage <|-u- RecommendationMessage
+    BaseProtocolMessage <|-u- UnclearExplanationMessage
+    BaseProtocolMessage <|-d- WhyMessage
+    BaseProtocolMessage <|-d- WhyNotMessage
+}

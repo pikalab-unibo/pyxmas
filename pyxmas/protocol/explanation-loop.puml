@@ -1,0 +1,27 @@
+hide footbox
+actor Explainee
+control Recommender
+
+
+Explainee -> Recommender: **QueryMessage**(Q)
+Recommender -> Explainee: **RecommendationMessage**(Q, R)
+Explainee -> Recommender: **WhyMessage**(Q, R)
+
+loop until accept message
+
+    Recommender -> Explainee: **MoreDetailsMessage**(Q, R, E)
+
+    alt Explainee requests a more detailed explanation
+        Explainee -> Recommender: **Unclear**(Q, R, E)
+    else Explainee is satisfied with the explanation
+        Explainee -> Recommender: **Accept**(Q, R, E)
+        note left of Recommender: break the loop
+    else R collides with Explainee's feature F
+        Explainee -> Recommender: **CollisionMessage**(Q, R, E, F)
+        note left of Recommender: propose new recommendation R'
+    else Explainee disapproves R because of M
+        Explainee -> Recommender: **DisapproveMessage**(Q, R, E, M)
+        note left of Recommender: propose new recommendation R'
+    end
+
+end

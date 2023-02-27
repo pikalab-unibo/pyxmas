@@ -1,0 +1,24 @@
+hide footbox
+actor Explainee
+control Recommender
+
+
+Explainee -> Recommender: **QueryMessage**(Q)
+Recommender -> Explainee: **RecommendationMessage**(Q, R)
+Explainee -> Recommender: **WhyNotMessage**(Q, R, R')
+
+alt R' is acceptable according to Recommender
+    Recommender -> Explainee: **ComparisonMessage**(Q, R, R', E)
+    alt E, hence R, is acceptable for Explainee
+        Explainee -> Recommender: **AcceptMessage**(Q, R, E)
+    else E is not sufficient, Explainee still prefers R'
+        Explainee -> Recommender: **PreferAlternativeMessage**(Q, R, R', E)
+    end
+else R' is *not* acceptable according to Recommender
+    Recommender -> Explainee: **InvalidAlternativeMessage**(Q, R', E)
+    alt E, hence R, is acceptable for Explainee
+        Explainee -> Recommender: **AcceptMessage**(Q, R, E)
+    else E is not sufficient, Explainee still prefers R'
+        Explainee -> Recommender: **OverrideRecommendationMessage**(Q, R, R')
+    end
+end
