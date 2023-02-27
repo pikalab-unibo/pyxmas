@@ -144,6 +144,14 @@ def update_xml_tag_value(input: str, name: str, value: data.Serializable):
 _default_data_types: data.Types = None
 
 
+def get_default_data_types() -> data.Types:
+    global _default_data_types
+    if _default_data_types is None:
+        import pyxmas.protocol.data.strings as strings
+        _default_data_types = strings.Types()
+    return _default_data_types
+
+
 def set_default_data_types(types: data.Types):
     global _default_data_types
     _default_data_types = types
@@ -795,3 +803,33 @@ class PreferAlternativeMessage(BaseProtocolMessage, MessageWithQuery, MessageWit
     @property
     def is_terminal(self):
         return True
+
+
+MESSAGE_TYPES = {
+    t.__name__: t for t in [AcceptMessage,
+                            CollisionMessage,
+                            ComparisonMessage,
+                            DisapproveMessage,
+                            InvalidAlternativeMessage,
+                            MoreDetailsMessage,
+                            OverrideRecommendationMessage,
+                            PreferAlternativeMessage,
+                            QueryMessage,
+                            RecommendationMessage,
+                            UnclearExplanationMessage,
+                            WhyMessage,
+                            WhyNotMessage]
+}
+
+
+def wrap(message: spade.message.Message, impl: data.Types = None):
+    if impl is None:
+        impl = _default_data_types
+    if METADATA_TYPE in message.metadata:
+        message_type = message.metadata[METADATA_TYPE]
+        if message_type in MESSAGE_TYPES:
+            return MESSAGE_TYPES[message_type].wrap(message, impl)
+        else:
+            raise ValueError(f"Unknown message type: {message_type}")
+    else:
+        raise ValueError(f"Message has no {METADATA_TYPE} metadata field, hence it cannot be wrapped")

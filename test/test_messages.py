@@ -398,6 +398,12 @@ class TestMessageWrappers(unittest.TestCase):
         self.assertEqual(msg, self.explanation2)
         self.assertFalse(msg.is_terminal)
 
+    def test_auto_wrapping(self):
+        for name, msg in self.__dict__.items():
+            if isinstance(msg, messages.BaseProtocolMessage):
+                with self.subTest(type=type(msg).__name__):
+                    self.assertTrue(messages.wrap(msg.delegate, self._impl), msg)
+
 
 if __name__ == '__main__':
     unittest.main()
