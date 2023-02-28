@@ -96,6 +96,9 @@ def override_spade_functionalities():
 class Behaviour(spade.behaviour.CyclicBehaviour):
     def __init__(self, thread: str = None):
         super().__init__()
+        self._initialize_random_thread(thread)
+
+    def _initialize_random_thread(self, thread: str = None):
         self._thread = random_string() if thread is None else thread
 
     @property
