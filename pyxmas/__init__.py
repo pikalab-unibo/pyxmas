@@ -66,6 +66,13 @@ class Agent(spade.agent.Agent):
             if timeout is not None and time.time() - start > timeout:
                 break
             time.sleep(sleep)
+    
+    async def async_await(self, sleep=0.1, timeout=None):
+        start = time.time()
+        while self.is_alive():
+            if timeout is not None and time.time() - start > timeout:
+                break
+            await asyncio.sleep(sleep)
 
     def stop(self):
         self.log(msg="Stopping...")
