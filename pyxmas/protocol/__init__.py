@@ -52,9 +52,9 @@ class Protocol(behaviours.FSMBehaviour, pyxmas.Behaviour, ABC):
 
 
 class State(behaviours.State, pyxmas.Behaviour, ABC):
-    def __init__(self, parent: Protocol):
+    def __init__(self, parent: Protocol, thread: str = None):
         behaviours.State.__init__(self)
-        self._initialize_random_thread()
+        self._initialize_random_thread(thread)
         self._parent = parent
 
     @property

@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Protocol, runtime_checkable
+from typing import Optional, Dict, Protocol, runtime_checkable, Union
 import re
 from functools import lru_cache
 import aioxmpp
@@ -833,3 +833,12 @@ def wrap(message: spade.message.Message, impl: data.Types = None):
             raise ValueError(f"Unknown message type: {message_type}")
     else:
         raise ValueError(f"Message has no {METADATA_TYPE} metadata field, hence it cannot be wrapped")
+
+
+ResponseToRecommendationMessage = Union[WhyMessage, WhyNotMessage, AcceptMessage, CollisionMessage, DisapproveMessage]
+
+ResponseToMoreDetailsMessage = Union[UnclearExplanationMessage, AcceptMessage, CollisionMessage, DisapproveMessage]
+
+ResponseToComparisonMessage = Union[AcceptMessage, PreferAlternativeMessage]
+
+ResponseToInvalidAlternativeMessage = Union[AcceptMessage, OverrideRecommendationMessage]
