@@ -84,7 +84,7 @@ setup(
     include_package_data=True,
     python_requires='>=3.9.0',
     install_requires=[
-        'spade==3.2.3',
+        'spade==3.3.2',
     ],  # Optional
     zip_safe = False,
     platforms = "Independant",
