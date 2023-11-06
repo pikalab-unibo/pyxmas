@@ -1,12 +1,12 @@
 from typing import Any, Coroutine
 import pyxmas
-from .protocol import messages
+from pyxmas.protocol import messages
 import spade
 import spade.agent
 import spade.behaviour
 
 
-from .protocol.explainee import ExplaineeBehaviour, _get_all_state_classes
+from pyxmas.protocol.explainee import ExplaineeBehaviour, _get_all_state_classes
 import pyxmas.protocol.data as data
 
 

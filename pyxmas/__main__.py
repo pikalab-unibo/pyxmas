@@ -3,8 +3,8 @@ import spade
 import spade.agent
 import spade.behaviour
 
-from .explainee_imp import ExplaineeAgent
-from .recommender_imp import RecommenderAgent
+from Expectation.explainee_imp import ExplaineeAgent
+from Expectation.recommender_imp import RecommenderAgent
 
 pyxmas.enable_logging()
 

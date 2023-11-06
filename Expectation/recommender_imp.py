@@ -1,5 +1,5 @@
 import pyxmas
-from .protocol import data
+from pyxmas.protocol import data
 import spade
 import spade.agent
 import spade.behaviour
@@ -7,7 +7,7 @@ from typing import Iterable, Callable, List
 import requests
 import json
 
-from .protocol.recommender import RecommenderBehaviour, _get_all_state_classes
+from pyxmas.protocol.recommender import RecommenderBehaviour, _get_all_state_classes
 import pyxmas.protocol.data as datas
 from pyxmas.protocol.messages import get_default_data_types
 
