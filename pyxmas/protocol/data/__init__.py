@@ -1,3 +1,5 @@
+import json
+
 __all__ = ["Query", "Recommendation", "Explanation", "Motivation", "Feature", "Types", "Serializable"]
 
 
@@ -17,15 +19,74 @@ class Serializable:
 
 
 class Query(Serializable):
-    pass
 
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+
+    def __str__(self):
+        return self.user_id
+
+    def __eq__(self, other):
+        return other is not None and self.user_id == other.user_id
+
+    def __hash__(self):
+        return hash(self.user_id)
+
+    def serialize(self) -> str:
+        return self.user_id
+
+    @classmethod
+    def parse(cls, input: str):
+        return cls(input)
 
 class Recommendation(Serializable):
-    pass
+        
+    def __init__(self, response: dict):
+        self.response = response
+        self.recipe_id = response["recipe"]["recipe_id"]
+        self.recipe = response["recipe"]["recipe"]["RecipeName"]
+        self.explanation = response["recipe"]["explanations"][0]["content"]
 
+    def __str__(self):
+        return self.recipe
+
+    def __eq__(self, other):
+        return other is not None and self.recipe_id == other.recipe_id
+
+    def __hash__(self):
+        return hash(self.recipe_id)
+
+    def serialize(self) -> str:
+        return json.dumps(self.response)
+    
+    @classmethod
+    def parse(cls, input: str):
+        response = json.loads(input)
+        return cls(response)
 
 class Explanation(Serializable):
-    pass
+        
+    def __init__(self, reccommandation : Recommendation):
+        self.recommendation = reccommandation
+        self.explanation = reccommandation.explanation
+
+    def __str__(self):
+        return self.explanation
+
+    def __eq__(self, other):
+        return other is not None and self.recommendation.recipe_id == other.recommendation.recipe_id and self.explanation == other.explanation
+
+    def __hash__(self):
+        return hash(self.recommendation.recipe_id)
+
+    def serialize(self) -> str:
+        return json.dumps(self.recommendation.response)
+    
+    @classmethod
+    def parse(cls, input: str):
+        response = json.loads(input)
+        response = Recommendation(response)
+        return cls(response)
 
 
 class Motivation(Serializable):
