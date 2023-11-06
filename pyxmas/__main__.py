@@ -3,23 +3,19 @@ import spade
 import spade.agent
 import spade.behaviour
 
+from .explainee_imp import ExplaineeAgent
+from .recommender_imp import RecommenderAgent
 
 pyxmas.enable_logging()
 
-
-class DummyAgent(pyxmas.Agent):
-    class DummyBehaviour(spade.behaviour.OneShotBehaviour, pyxmas.Behaviour):
-        async def run(self):
-            self.log(msg="Hello World!")
-
-    async def setup(self):
-        await super().setup()
-        self.add_behaviour(self.DummyBehaviour())
-
-
 with pyxmas.System() as system:
-    with DummyAgent("admin@localhost", "password") as dummy:
-        try:
-            dummy.sync_await()
-        except KeyboardInterrupt:
-            dummy.stop()
+
+    with RecommenderAgent("recommender@localhost", "password") as recommender:
+        with ExplaineeAgent("explainee@localhost", "password") as explainee:
+                    try:
+                        explainee.sync_await(timeout=20)
+                        recommender.sync_await(timeout=20)
+                    except KeyboardInterrupt:
+                        recommender.stop()
+                        explainee.stop()
+
