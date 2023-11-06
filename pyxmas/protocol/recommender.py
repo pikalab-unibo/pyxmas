@@ -5,6 +5,7 @@ from typing import Iterable, Callable, List
 import pyxmas.protocol as protocol
 import pyxmas.protocol.messages as messages
 import pyxmas.protocol.data as data
+import asyncio
 
 
 __all__ = [
@@ -40,6 +41,7 @@ class RecommenderBehaviour(protocol.Protocol, ABC):
         super().__init__(thread, impl)
 
     def setup(self) -> None:
+        self.add_state(state = StateIdle, initial=True)
         for state in _get_all_state_classes():
             self.add_transitions(state, state.reachable_states(), error=StateError)
 
@@ -118,7 +120,7 @@ class RecommenderState(protocol.State, ABC):
 
     async def run(self):
         try:
-            self.log(f"Entering state {self.name()}")
+            self.log(msg = f"Entering state {self.name()}")
             await self.action()
         except Exception as e:
             self.log(msg=f"Error in state {self.name()} | {str(e)}")
@@ -126,9 +128,9 @@ class RecommenderState(protocol.State, ABC):
             self.set_next_state(StateError)
         finally:
             if self.next_state is None:
-                self.log(f"Moving out from state {self.name()}, no next state")
+                self.log(msg = f"Moving out from state {self.name()}, no next state")
             else:
-                self.log(f"Moving from state {self.name()} to state {self.next_state.name()}")
+                self.log(msg = f"Moving from state {self.name()} to state {self.next_state}")
 
     async def action(self):
         ...
@@ -231,7 +233,9 @@ class BaseWaitingState(RecommenderState, ABC):
         self.log(msg="Store last message in history")
         for message_type, handler in self._handlers.items():
             if isinstance(message, message_type):
-                handler(message)
+                result = handler(message)
+                if asyncio.iscoroutine(result):
+                    await result
                 return
         del self.memory["history"][-1]
         self.log(msg="Remove last message from history")
@@ -284,10 +288,10 @@ class StateComputingComparativeExplanation(RecommenderState):
         self.log(msg=f"Computed contrastive explanation: {explanation}")
         if is_valid:
             reply = message.make_comparison_reply(explanation)
-            self.log(f"Sending comparative reply {reply}")
+            self.log(msg = f"Sending comparative reply {reply}")
         else:
             reply = message.make_invalid_alternative_reply(explanation)
-            self.log(f"Sending invalid reply {reply}")
+            self.log(msg = f"Sending invalid reply {reply}")
         await self.send(reply.delegate)
         self.log(msg=f"Reply sent")
         self.set_next_state(StateWaitingComparisonFeedback if is_valid else StateWaitingInvalidFeedback)
@@ -309,7 +313,7 @@ class StateComputingExplanation(RecommenderState):
         explanation = await self.parent.compute_explanation(message.query, message.recommendation)
         self.log(msg=f"Computed explanation: {explanation}")
         reply = message.make_more_details_reply(explanation)
-        self.log(f"Sending more details reply {reply}")
+        self.log(msg = f"Sending more details reply {reply}")
         await self.send(reply.delegate)
         self.log(msg=f"Reply sent")
         self.set_next_state(StateWaitingExplanationFeedback)

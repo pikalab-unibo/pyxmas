@@ -38,6 +38,7 @@ class ExplaineeBehaviour(protocol.Protocol, ABC):
         self._recipient = recipient
 
     def setup(self) -> None:
+        self.add_state(StateInit, initial=True)
         for state in _get_all_state_classes():
             self.add_transitions(state, state.reachable_states(), error=StateError)
 
@@ -87,7 +88,7 @@ class ExplaineeState(protocol.State, ABC):
 
     async def run(self):
         try:
-            self.log(f"Entering state {self.name()}")
+            self.log(msg = f"Entering state {self.name()}")
             await self.action()
         except Exception as e:
             self.log(msg=f"Error in state {self.name()} | {str(e)}")
@@ -95,9 +96,9 @@ class ExplaineeState(protocol.State, ABC):
             self.set_next_state(StateError)
         finally:
             if self.next_state is None:
-                self.log(f"Moving out from state {self.name()}, no next state")
+                self.log(msg = f"Moving out from state {self.name()}, no next state")
             else:
-                self.log(f"Moving from state {self.name()} to state {self.next_state.name()}")
+                self.log(msg = f"Moving from state {self.name()} to state {self.next_state}")
 
     async def action(self):
         ...
@@ -131,13 +132,16 @@ class StateEnd(ExplaineeState):
 class StateInit(ExplaineeState):
     async def action(self):
         self.log(msg=f"Issuing query ${self.parent.query}")
-        message = messages.QueryMessage(
+
+        message = messages.QueryMessage.create(
             query=self.parent.query,
             to=self.parent.recipient
         )
+
         await self.send(message)
         self.memory['history'].append(message)
         self.log(msg=f"Sent ${message}")
+
         self.set_next_state(StateAwaitingRecommendation)
 
     @classmethod
@@ -156,11 +160,12 @@ class StateAwaitingRecommendation(ExplaineeState):
         if not isinstance(message, messages.RecommendationMessage):
             raise RuntimeError("Last message is not a recommendation message")
         self.log(msg=f"Computing answer for recommendation: {message.recommendation}")
-        answer = self.parent.handle_recommendation(message)
+        answer = await self.parent.handle_recommendation(message)
         self.log(msg=f"Computed answer for recommendation {message.recommendation}: ${answer}")
         await self.send(answer)
         self.log(msg=f"Sent answer for recommendation {message.recommendation}: ${answer}")
         self.memory['history'].append(answer)
+
         if isinstance(answer, messages.DisapproveMessage) or isinstance(answer, messages.CollisionMessage):
             self.set_next_state(StateAwaitingRecommendation)
         elif isinstance(answer, messages.WhyMessage):
@@ -179,6 +184,7 @@ class StateAwaitingRecommendation(ExplaineeState):
 
 
 class StateAwaitingDetails(ExplaineeState):
+
     async def action(self):
         message = await self.receive()
         if message is None:
@@ -189,11 +195,12 @@ class StateAwaitingDetails(ExplaineeState):
         if not isinstance(message, messages.MoreDetailsMessage):
             raise RuntimeError("Last message is not an explanation message")
         self.log(msg=f"Computing answer for explanation: {message.explanation}")
-        answer = self.parent.handle_details(message)
+        answer =  await self.parent.handle_details(message)
         self.log(msg=f"Computed answer for explanation {message.explanation}: ${answer}")
         await self.send(answer)
         self.log(msg=f"Sent answer for explanation {message.explanation}: ${answer}")
         self.memory['history'].append(answer)
+        
         if isinstance(answer, messages.DisapproveMessage) or isinstance(answer, messages.CollisionMessage):
             self.set_next_state(StateAwaitingRecommendation)
         elif isinstance(answer, messages.UnclearExplanationMessage):
@@ -239,7 +246,7 @@ class StateHandlingComparison(ExplaineeState):
         if not isinstance(message, messages.ComparisonMessage):
             raise RuntimeError("Last message is not a comparison message")
         self.log(msg=f"Computing answer for message: {message}")
-        answer = self.parent.handle_comparison(message)
+        answer = await self.parent.handle_comparison(message)
         self.log(msg=f"Computed answer for comparison: ${answer}")
         await self.send(answer)
         self.log(msg=f"Sent answer for comparison: ${answer}")
@@ -263,7 +270,7 @@ class StateHandlingInvalid(ExplaineeState):
         if not isinstance(message, messages.InvalidAlternativeMessage):
             raise RuntimeError("Last message is not an invalid alternative message")
         self.log(msg=f"Computing answer for message: {message}")
-        answer = self.parent.handle_invalid_alternative(message)
+        answer = await self.parent.handle_invalid_alternative(message)
         self.log(msg=f"Computed answer for comparison: ${answer}")
         await self.send(answer)
         self.log(msg=f"Sent answer for comparison: ${answer}")
