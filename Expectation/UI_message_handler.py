@@ -114,7 +114,7 @@ async def endNego(request: Request):
 
     interaction = pd.read_pickle(f"interaction-{user_id}.pickle")
 
-    interaction.loc[user_id] = ["","",""]
+    interaction.loc[user_id] = [True,"",""]
     save(interaction,f"interaction-{user_id}.pickle")
     print(interaction.loc[user_id])
 
