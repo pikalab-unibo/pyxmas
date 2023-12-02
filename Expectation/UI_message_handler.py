@@ -9,12 +9,11 @@ import os
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
-import os
 import threading
 
-
-def save(df,filename):
-    with open(filename, 'wb') as file:
+# Helper function to save a DataFrame as a pickle file in the specified directory
+def save(df, filename, folder):
+    with open(os.path.join(folder, filename), 'wb') as file:
         pickle.dump(df, file)
 
 class getRecommendation(FileSystemEventHandler):
@@ -24,21 +23,26 @@ class getRecommendation(FileSystemEventHandler):
         self.stop = False
 
     def method_to_run(self):
-        recommendations = pd.read_pickle(f"recommendation-{self.user_id}.pickle")
+        recommendation_file = os.path.join(os.getcwd(), "recommendations", self.user_id, f"recommendation-{self.user_id}.pickle")
+        recommendations = pd.read_pickle(recommendation_file)
         if self.user_id in recommendations.index.values:
             print("Recommendation Arrived!")
             self.event.set()  # Signal that the recommendation has arrived
             self.stop = True
 
     def on_modified(self, event):
+        # Check if the modified file is the specific user's recommendation file
         if os.path.basename(event.src_path) == f"recommendation-{self.user_id}.pickle":
             self.method_to_run()
 
-def start_observer(event_handler):
+# Function to start an observer for a specific user's recommendation folder
+def start_observer(event_handler, user_id):
     observer = Observer()
-    observer.schedule(event_handler, os.getcwd(), recursive=False)
+    # Set the path to the specific user's recommendation folder
+    path = os.path.join(os.getcwd(), "recommendations", user_id)
+    observer.schedule(event_handler, path, recursive=False)
     observer.start()
-    print("Observer started")
+    print(f"Observer started for user {user_id}")
 
     try:
         while not event_handler.stop:
@@ -51,10 +55,7 @@ def start_observer(event_handler):
         observer.stop()
     observer.join()
 
-
-
-#API SERVER
-
+# FastAPI instance and CORS middleware setup
 app = FastAPI()
 
 app.add_middleware(
@@ -65,19 +66,25 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Endpoint to handle recipe recommendation requests
 @app.post("/explanation-generation/get-recipe")
 async def getRecipe(request: Request):
     request_data = await request.json()
     user_id = request_data["uuid"]
     feedback = request_data["feedback"]
 
-        # Check if the file 'interaction-{user_id}.pickle' exists
-    if not os.path.exists(f'interaction-{user_id}.pickle'):
-        interaction = pd.DataFrame({"Accepted": [], "Feedback": [], "JSON":[]})
-        save(interaction,f"interaction-{user_id}.pickle")
+    folder = os.path.join(os.getcwd(), "interactions", user_id)
 
-    with open(f'interaction-{user_id}.pickle', 'rb') as file:
-            interaction = pickle.load(file)
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    interaction_file = os.path.join(folder, f'interaction-{user_id}.pickle')
+    if not os.path.exists(interaction_file):
+        interaction = pd.DataFrame({"Accepted": [], "Feedback": [], "JSON":[]})
+        save(interaction, f'interaction-{user_id}.pickle', folder)
+
+    with open(interaction_file, 'rb') as file:
+        interaction = pickle.load(file)
 
     if user_id not in interaction.index.values:
         interaction.loc[user_id] = [False, "", request_data]
@@ -85,51 +92,58 @@ async def getRecipe(request: Request):
         interaction.at[user_id, 'Feedback'] = feedback
         interaction.at[user_id, 'JSON'] = request_data
 
-    save(interaction, f"interaction-{user_id}.pickle")
+    save(interaction, f'interaction-{user_id}.pickle', folder)
     print(interaction.loc[user_id])
 
     event = threading.Event()
     handler = getRecommendation(user_id, event)
-    observer_thread = threading.Thread(target=start_observer, args=(handler,))
-    observer_thread.start()
+    start_observer(handler,user_id)
 
     # Wait for the recommendation to arrive
     event.wait()
 
     print("Returning Recommendation")
-    recommendations = pd.read_pickle(f"recommendation-{user_id}.pickle")
+    recommendation_file = os.path.join(os.getcwd(), "recommendations", user_id, f"recommendation-{user_id}.pickle")
+    recommendations = pd.read_pickle(recommendation_file)
     recommendation = recommendations.loc[user_id]["JSON"]
-
 
     return recommendation
 
 
 @app.post("/explanation-generation/end-negotiation")
 async def endNego(request: Request):
-
-    print("Accepted!")
+    print("Accepted")
 
     request_data = await request.json()
     user_id = request_data["uuid"]
 
-    interaction = pd.read_pickle(f"interaction-{user_id}.pickle")
+    # Define the folder and file paths
+    folder = os.path.join(os.getcwd(), "interactions", user_id)
+    interaction_file = os.path.join(folder, f'interaction-{user_id}.pickle')
 
-    interaction.loc[user_id] = [True,"",""]
-    save(interaction,f"interaction-{user_id}.pickle")
+    # Load the interaction data
+    with open(interaction_file, 'rb') as file:
+        interaction = pickle.load(file)
+
+    # Update the interaction data
+    interaction.loc[user_id] = [True, "", ""]
+
+    save(interaction, f'interaction-{user_id}.pickle', folder)
     print(interaction.loc[user_id])
 
-    request_data = await request.json()
+    # Serialize the request data and make an internal POST request
     serialized_data = json.dumps(request_data)
     url = "http://127.0.0.1:8000/explanation-generation/end-negotiation"
 
     try:
         internal_response = requests.post(url, data=serialized_data, headers={"Content-Type": "application/json"})
         internal_response.raise_for_status()
-
+        return internal_response.json()
     except requests.exceptions.RequestException as e:
         print(e)
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
-    return internal_response.json()
+
 
 
 # Rest of this is just being forwarded 
@@ -138,19 +152,32 @@ async def endNego(request: Request):
 @app.post("/register")
 async def register(request: Request):
 
-    if not os.path.exists("lobby"):
-        lobby = pd.DataFrame({"Username":[]})
-        save(lobby,"lobby.pickle")
-
-    with open("lobby.pickle", 'rb') as file:
-            lobby = pickle.load(file)
-
-
     request_data = await request.json()
     print(request_data)
+    user_id = request_data["username"]
+
+    folder = os.path.join(os.getcwd(), "interactions", user_id)
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    interaction_file = os.path.join(folder, f'interaction-{user_id}.pickle')
+    if not os.path.exists(interaction_file):
+        interaction = pd.DataFrame({"Accepted": [], "Feedback": [], "JSON":[]})
+        save(interaction, f'interaction-{user_id}.pickle', folder)
+
+    path =  os.path.dirname(os.getcwd())
+
+    if not os.path.exists("lobby"):
+        lobby = pd.DataFrame({"Username":[]})
+        save(lobby,path + "/lobby.pickle", folder="")
+
+    with open(path + "/lobby.pickle", 'rb') as file:
+            lobby = pickle.load(file)
+
     user_name = request_data["username"]
     lobby.loc[user_name] = "Active"
-    save(lobby,"lobby.pickle")
+    save(lobby,path + "/lobby.pickle", folder="")
 
     url = "http://127.0.0.1:8000/register"
 
