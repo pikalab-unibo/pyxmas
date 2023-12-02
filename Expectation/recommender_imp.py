@@ -14,6 +14,12 @@ from pyxmas.protocol.messages import get_default_data_types
 
 class RecommenderAgent(pyxmas.Agent):
 
+    def __init__(self,  loop,jid: str, password: str, verify_security: bool = False, thread= None):
+        super().__init__(jid, password, verify_security)
+        self.set_loop = loop
+        self.thread = thread
+
+
     class REC_Behaviour(RecommenderBehaviour):
                
             def __init__(self, thread: str = None, impl: data.Types = None, baseIP = "http://127.0.0.1:8000"):
@@ -107,6 +113,7 @@ class RecommenderAgent(pyxmas.Agent):
                 "Implement This Methos"
                 
     async def setup(self):
+        print("Setup is called")
         self.add_behaviour(self.REC_Behaviour())    
 
 
