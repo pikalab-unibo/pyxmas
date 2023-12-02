@@ -140,7 +140,15 @@ class ExplaineeAgent(pyxmas.Agent):
                     return messages.AcceptMessage.create(query=message.query,recommendation=message.recommendation,to=self.recipient)
                 
 
-        # Implement other handlers as needed...
+        async def handle_comparison(self,
+                                    message: messages.ComparisonMessage
+                                    ) -> messages.ResponseToComparisonMessage:
+            "Implement This Methos"
+
+        async def handle_invalid_alternative(self,
+                                            message: messages.InvalidAlternativeMessage
+                                            ) -> messages.ResponseToInvalidAlternativeMessage:
+            "Implement This Methos"
 
     async def setup(self):
             # Start the interaction observer
