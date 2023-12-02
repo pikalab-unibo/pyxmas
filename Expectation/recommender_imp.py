@@ -27,19 +27,16 @@ class RecommenderAgent(pyxmas.Agent):
                 "Implement This Methos"
       
             async def compute_recommendation(self, message: data.Query) -> data.Recommendation:
-                "Implement This Methos"
-                url = self.explanationAPI + "/get-recommendation"
-                headers = {'Content-Type': 'application/json'}
-                data = {'uuid': message.user_id}
-                response = requests.post(url, headers=headers, data=json.dumps(data))
+                url = "http://127.0.0.1:8000/explanation-generation/get-recipe"
+                serialized_data = json.dumps(message.JSON)
 
-                response.raise_for_status()  # raises exception when not a 2xx response
-                if response.status_code != 204:
-                    response =  response.json()
-                else:
-                    raise Exception("Empty JSON Object")  
+                try:
+                    internal_response = requests.post(url, data=serialized_data, headers={"Content-Type": "application/json"})
+                    internal_response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    print(e)
             
-                recommendation = datas.Recommendation(response)
+                recommendation = datas.Recommendation(internal_response.json())
                 return recommendation
 
 
@@ -77,8 +74,17 @@ class RecommenderAgent(pyxmas.Agent):
                                 message: data.Query,
                                 recommendation: data.Recommendation,
                                 explanation: data.Explanation = None):
-                "Implement This Methos"
+                
+                url = "http://127.0.0.1:8000/explanation-generation/end-negotiation"
 
+                serialized_data = json.dumps(message.JSON)
+
+                try:
+                    internal_response = requests.post(url, data=serialized_data, headers={"Content-Type": "application/json"})
+                    internal_response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    print(e)
+            
             async def on_unclear(self,
                                 message: data.Query,
                                 recommendation: data.Recommendation,

@@ -11,10 +11,10 @@ pyxmas.enable_logging()
 with pyxmas.System() as system:
 
     with RecommenderAgent("recommender@localhost", "password") as recommender:
-        with ExplaineeAgent("explainee@localhost", "password") as explainee:
+        with ExplaineeAgent(user_id="34",jid="explainee@localhost", password="password") as explainee:
                     try:
-                        explainee.sync_await(timeout=20)
-                        recommender.sync_await(timeout=20)
+                        explainee.sync_await(timeout=200)
+                        recommender.sync_await(timeout=200)
                     except KeyboardInterrupt:
                         recommender.stop()
                         explainee.stop()

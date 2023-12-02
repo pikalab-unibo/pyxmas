@@ -20,8 +20,9 @@ class Serializable:
 
 class Query(Serializable):
 
-    def __init__(self, user_id: str):
-        self.user_id = user_id
+    def __init__(self,JSON):
+        self.user_id = JSON["uuid"]
+        self.JSON = JSON
 
     def __str__(self):
         return self.user_id
@@ -33,11 +34,12 @@ class Query(Serializable):
         return hash(self.user_id)
 
     def serialize(self) -> str:
-        return self.user_id
+        return json.dumps(self.JSON)
 
     @classmethod
     def parse(cls, input: str):
-        return cls(input)
+        JSON = json.loads(input)
+        return cls(JSON)
 
 class Recommendation(Serializable):
         
