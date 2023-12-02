@@ -138,6 +138,20 @@ async def endNego(request: Request):
 @app.post("/register")
 async def register(request: Request):
 
+    if not os.path.exists("lobby"):
+        lobby = pd.DataFrame({"Username":[]})
+        save(lobby,"lobby.pickle")
+
+    with open("lobby.pickle", 'rb') as file:
+            lobby = pickle.load(file)
+
+
+    request_data = await request.json()
+    print(request_data)
+    user_name = request_data["username"]
+    lobby.loc[user_name] = "Active"
+    save(lobby,"lobby.pickle")
+
     url = "http://127.0.0.1:8000/register"
 
     try:

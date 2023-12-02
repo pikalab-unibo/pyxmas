@@ -195,13 +195,11 @@ class ExplaineeAgent(pyxmas.Agent):
                 "Implement This Methos"
 
     async def setup(self):
-        interaction = pd.read_pickle(path + f"/interaction-{self.user_id}.pickle")
-        print(interaction)
         handler = startInteraction(user_id=self.user_id)
         start_observer(handler)
         print("Sending First Query")
         interaction = pd.read_pickle(path + f"/interaction-{self.user_id}.pickle")
         query = data.Query(interaction.at[self.user_id,"JSON"])
-        self.add_behaviour(self.EXP_Behaviour(user_id=self.user_id,query=query, recipient="recommender@localhost"))    
+        self.add_behaviour(self.EXP_Behaviour(user_id=self.user_id,query=query, recipient=f"recommender-{self.user_id}@localhost"))    
 
 
