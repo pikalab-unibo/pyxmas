@@ -8,7 +8,7 @@ import time
 import os
 from .interaction import Interact
 from .xmpp import XmppService
-import threading
+import multiprocessing
 
 pyxmas.enable_logging()
 
@@ -53,9 +53,6 @@ pyxmas.enable_logging()
 if __name__ == '__main__':
     with pyxmas.System() as system:
 
-        local_service = XmppService()
-        local_service.start()
-
         while True:
             handler = Joined()
             start_observer(handler)
@@ -68,7 +65,7 @@ if __name__ == '__main__':
 
             processes = []
             for username in usernames:
-                process = threading.Thread(target=Interact, args=(username,local_service))
+                process = multiprocessing.Process(target=Interact, args=(username,))
                 process.start()
                 processes.append(process)
 

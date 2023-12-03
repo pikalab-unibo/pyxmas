@@ -83,7 +83,7 @@ class Feedback(FileSystemEventHandler):
             self.method_to_run()
 
 class ExplaineeAgent(pyxmas.Agent):
-    def __init__(self,  loop, jid: str, password: str, user_id: str, verify_security: bool = False, thread=None):
+    def __init__(self,  jid: str, password: str, user_id: str, verify_security: bool = False, thread=None):
         super().__init__(jid, password, verify_security)
         self.user_id = user_id
         self.thread = thread
@@ -92,7 +92,6 @@ class ExplaineeAgent(pyxmas.Agent):
         self.recommendation_df = load_or_initialize_df(
             user_id, "recommendations", f"recommendation-{user_id}.pickle", ["JSON"]
         )
-        self.set_loop = loop
 
     class EXP_Behaviour(ExplaineeBehaviour):
         def __init__(self, user_id: str, query: data.Query, recipient: str, thread: str = None, impl: data.Types = None, baseIP = "http://127.0.0.1:8000"):

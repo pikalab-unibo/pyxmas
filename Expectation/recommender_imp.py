@@ -14,9 +14,8 @@ from pyxmas.protocol.messages import get_default_data_types
 
 class RecommenderAgent(pyxmas.Agent):
 
-    def __init__(self,  loop,jid: str, password: str, verify_security: bool = False, thread= None):
+    def __init__(self, jid: str, password: str, verify_security: bool = False, thread= None):
         super().__init__(jid, password, verify_security)
-        self.set_loop = loop
         self.thread = thread
 
 
