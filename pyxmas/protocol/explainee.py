@@ -5,7 +5,8 @@ from typing import Iterable, List
 import pyxmas.protocol as protocol
 import pyxmas.protocol.messages as messages
 import pyxmas.protocol.data as data
-
+import asyncio
+import json
 
 __all__ = [
     'ExplaineeBehaviour',
@@ -105,6 +106,7 @@ class ExplaineeState(protocol.State, ABC):
 
 
 class StateError(ExplaineeState):
+
     async def action(self):
         e = self.memory["last_error"]
         if e is None:
@@ -130,23 +132,51 @@ class StateEnd(ExplaineeState):
 
 
 class StateInit(ExplaineeState):
-    async def action(self):
-        self.log(msg=f"Issuing query ${self.parent.query}")
 
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._query_result = None
+
+    async def get_query(self):
+        # If the query has not been executed, execute and store the result
+        if self._query_result is None:
+            self._query_result = await asyncio.create_task(self.parent.query)
+        return self._query_result
+
+    async def action(self):     
+        # Retrieve the query result; this will only execute the coroutine once
+        result = await self.get_query()
+        print(result)
+        result = result.body
+
+        try:
+            result_data = json.loads(result)
+            # Process the data as needed
+            print(result_data)
+        except json.JSONDecodeError:
+            print("Error: The message body does not contain valid JSON.")
+
+        query = data.Query(result_data)
+
+        # Logging the issuance of the query
+        self.log(msg=f"Issuing query {query}")
+
+        # Use the result of the coroutine in creating your message
         message = messages.QueryMessage.create(
-            query=self.parent.query,
+            query=query,
             to=self.parent.recipient
         )
 
         await self.send(message)
         self.memory['history'].append(message)
-        self.log(msg=f"Sent ${message}")
+        self.log(msg=f"Sent {message}")
 
         self.set_next_state(StateAwaitingRecommendation)
 
     @classmethod
     def reachable_states(cls) -> Iterable[type]:
         return [StateAwaitingRecommendation]
+
 
 
 class StateAwaitingRecommendation(ExplaineeState):

@@ -15,6 +15,7 @@ def Interact(username):
 
         local_service.add_user(username=username, password="password")
         local_service.add_user(username="recommender-" + username, password="password")
+        local_service.add_user(username="handler-" + username, password="password")
 
         # Assuming these agents are asyncio compatible
         with RecommenderAgent(jid="recommender-"+username+"@localhost", password="password") as recommender, \
@@ -27,4 +28,5 @@ def Interact(username):
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
+        print("Stopping Service")
         local_service.stop()

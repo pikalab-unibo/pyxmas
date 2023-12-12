@@ -2,58 +2,16 @@ from fastapi import FastAPI, HTTPException, Request, status
 import requests
 import json
 from fastapi.middleware.cors import CORSMiddleware
-import asyncio
 import pandas as pd
 import pickle 
 import os
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-import time
-import threading
+import aioxmpp
+import asyncio
 
 # Helper function to save a DataFrame as a pickle file in the specified directory
 def save(df, filename, folder):
     with open(os.path.join(folder, filename), 'wb') as file:
         pickle.dump(df, file)
-
-class getRecommendation(FileSystemEventHandler):
-    def __init__(self, user_id, event):
-        self.user_id = user_id
-        self.event = event
-        self.stop = False
-
-    def method_to_run(self):
-        recommendation_file = os.path.join(os.getcwd(), "recommendations", self.user_id, f"recommendation-{self.user_id}.pickle")
-        recommendations = pd.read_pickle(recommendation_file)
-        if self.user_id in recommendations.index.values:
-            print("Recommendation Arrived!")
-            self.event.set()  # Signal that the recommendation has arrived
-            self.stop = True
-
-    def on_modified(self, event):
-        # Check if the modified file is the specific user's recommendation file
-        if os.path.basename(event.src_path) == f"recommendation-{self.user_id}.pickle":
-            self.method_to_run()
-
-# Function to start an observer for a specific user's recommendation folder
-def start_observer(event_handler, user_id):
-    observer = Observer()
-    # Set the path to the specific user's recommendation folder
-    path = os.path.join(os.getcwd(), "recommendations", user_id)
-    observer.schedule(event_handler, path, recursive=False)
-    observer.start()
-    print(f"Observer started for user {user_id}")
-
-    try:
-        while not event_handler.stop:
-            time.sleep(1)
-            if event_handler.stop:
-                observer.stop()
-                return
-
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
 
 # FastAPI instance and CORS middleware setup
 app = FastAPI()
@@ -66,70 +24,86 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+class XMPPReceiver:
+    def __init__(self, client):
+        self.client = client
+        self.queue = asyncio.Queue()
+        self.client.stream.register_message_callback(
+            aioxmpp.MessageType.CHAT,
+            None,
+            self.message_callback  # This is a regular function now
+        )
+
+    def message_callback(self, msg):
+        # Schedule the async handling of the message
+        asyncio.create_task(self.handle_message(msg))
+
+    async def handle_message(self, msg):
+        # Now an async function to properly await queue operations
+        if msg.body:
+            print(f"Recieved Message: {msg}")
+            print(f"Body: {msg.body}")
+            await self.queue.put(msg.body)
+
+    async def get_recommendation(self):
+        msg = await self.queue.get()
+        msg = msg
+        recommendation = next(iter(msg.values()), None)
+        print(f"Recommendation is {recommendation}")
+        return json.loads(recommendation)
+
+
 # Endpoint to handle recipe recommendation requests
 @app.post("/explanation-generation/get-recipe")
 async def getRecipe(request: Request):
+
     request_data = await request.json()
     user_id = request_data["uuid"]
-    feedback = request_data["feedback"]
+    recipient = aioxmpp.JID.fromstr(f"{user_id}@localhost")   
 
-    folder = os.path.join(os.getcwd(), "interactions", user_id)
+    jid = aioxmpp.JID.fromstr(f"handler-{user_id}@localhost")
+    security_layer = aioxmpp.make_security_layer('password', no_verify=True)
+    client = aioxmpp.PresenceManagedClient(jid, security_layer)
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+    receiver = XMPPReceiver(client)   
 
-    interaction_file = os.path.join(folder, f'interaction-{user_id}.pickle')
-    if not os.path.exists(interaction_file):
-        interaction = pd.DataFrame({"Accepted": [], "Feedback": [], "JSON":[]})
-        save(interaction, f'interaction-{user_id}.pickle', folder)
+    async with client.connected() as stream:
+        msg = aioxmpp.Message(
+            to=recipient,
+            type_=aioxmpp.MessageType.CHAT,
+        )
+        msg.body[None] = json.dumps(request_data)
+        print(f"Sent: {msg}")
+        await stream.send(msg)
 
-    with open(interaction_file, 'rb') as file:
-        interaction = pickle.load(file)
+    
+        recommendation = await receiver.get_recommendation()
 
-    if user_id not in interaction.index.values:
-        interaction.loc[user_id] = [False, "", request_data]
-    else:
-        interaction.at[user_id, 'Feedback'] = feedback
-        interaction.at[user_id, 'JSON'] = request_data
-
-    save(interaction, f'interaction-{user_id}.pickle', folder)
-    print(interaction.loc[user_id])
-
-    event = threading.Event()
-    handler = getRecommendation(user_id, event)
-    start_observer(handler,user_id)
-
-    # Wait for the recommendation to arrive
-    event.wait()
-
-    print("Returning Recommendation")
-    recommendation_file = os.path.join(os.getcwd(), "recommendations", user_id, f"recommendation-{user_id}.pickle")
-    recommendations = pd.read_pickle(recommendation_file)
-    recommendation = recommendations.loc[user_id]["JSON"]
-
-    return recommendation
+    return json.dumps(recommendation)
 
 
 @app.post("/explanation-generation/end-negotiation")
 async def endNego(request: Request):
-    print("Accepted")
 
+    print("Accepted")
     request_data = await request.json()
     user_id = request_data["uuid"]
+    recipient = aioxmpp.JID.fromstr(f"{user_id}@localhost") 
+    request_data["feedback"] = "Accepted" 
 
-    # Define the folder and file paths
-    folder = os.path.join(os.getcwd(), "interactions", user_id)
-    interaction_file = os.path.join(folder, f'interaction-{user_id}.pickle')
+    jid = aioxmpp.JID.fromstr(f"handler-{user_id}@localhost")
+    security_layer = aioxmpp.make_security_layer('password', no_verify=True)
+    client = aioxmpp.PresenceManagedClient(jid, security_layer)
 
-    # Load the interaction data
-    with open(interaction_file, 'rb') as file:
-        interaction = pickle.load(file)
+    async with client.connected() as stream:
+        msg = aioxmpp.Message(
+            to=recipient,
+            type_=aioxmpp.MessageType.CHAT,
+        )
+        msg.body[None] = json.dumps(request_data)
+        print(f"Sent: {msg}")
+        await stream.send(msg)
 
-    # Update the interaction data
-    interaction.loc[user_id] = [True, "", ""]
-
-    save(interaction, f'interaction-{user_id}.pickle', folder)
-    print(interaction.loc[user_id])
 
     # Serialize the request data and make an internal POST request
     serialized_data = json.dumps(request_data)
@@ -189,6 +163,8 @@ async def register(request: Request):
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
     return internal_response.json()
+
+
 
 @app.post("/get-user-categories")
 async def register(request: Request):
