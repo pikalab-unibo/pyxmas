@@ -128,17 +128,6 @@ async def register(request: Request):
 
     request_data = await request.json()
     print(request_data)
-    user_id = request_data["username"]
-
-    folder = os.path.join(os.getcwd(), "interactions", user_id)
-
-    if not os.path.exists(folder):
-        os.makedirs(folder)
-
-    interaction_file = os.path.join(folder, f'interaction-{user_id}.pickle')
-    if not os.path.exists(interaction_file):
-        interaction = pd.DataFrame({"Accepted": [], "Feedback": [], "JSON":[]})
-        save(interaction, f'interaction-{user_id}.pickle', folder)
 
     path =  os.path.dirname(os.getcwd())
 
@@ -163,7 +152,6 @@ async def register(request: Request):
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
 
     return internal_response.json()
-
 
 
 @app.post("/get-user-categories")
