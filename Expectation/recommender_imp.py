@@ -45,7 +45,6 @@ class RecommenderAgent(pyxmas.Agent):
                 return recommendation
 
 
-
             async def compute_explanation(self, message: data.Query, recommendation: data.Recommendation) -> data.Explanation:
                 "Implement This Methos"
 
@@ -63,17 +62,64 @@ class RecommenderAgent(pyxmas.Agent):
                             alternative: data.Recommendation) -> bool:
                 "Implement This Methos"
 
+
             async def on_collision(self,
                                 message: data.Query,
                                 recommendation: data.Recommendation,
                                 feature: data.Feature):
-                "Implement This Methos"
+                "{'uuid': 'ESd', 'unwantedIngredients': ['Sauce', 'Apple']}"
+
+                feedback = {"uuid" : message.user_id, "unwantedIngredients":feature.list}
+
+                print(f"Sending feedback {feedback}")
+
+                url = "http://127.0.0.1:8000/save-constraints"
+
+                serialized_data = json.dumps(feedback)
+
+                try:
+                    internal_response = requests.post(url, data=serialized_data, headers={"Content-Type": "application/json"})
+                    internal_response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    print(e)
+
+                self.memory['history'].append(self.memory["history"][0])
+
 
             async def on_disagree(self,
                                 message: data.Query,
                                 recommendation: data.Recommendation,
                                 motivation: data.Motivation):
-                "Implement This Methos"
+                
+                ingredients = {i : 0 for i in motivation.list}
+                
+                feedback = { "uuid": message.user_id, "obj_name": "feedback", "obj_id": recommendation.recipe_id, "obj": {"item_label": False, "item_id": recommendation.recipe_id,  "feedback": ingredients } }
+
+                print(f"Sending feedback {feedback}")
+
+                url = "http://127.0.0.1:8000/active-learning/save-user-response"
+
+                serialized_data = json.dumps(feedback)
+
+                try:
+                    internal_response = requests.post(url, data=serialized_data, headers={"Content-Type": "application/json"})
+                    internal_response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    print(e)
+
+                self.memory['history'].append(self.memory["history"][0])
+
+                url  ="http://127.0.0.1:8000/active-learning/active_learning_feedback_and_update_step"
+
+                user_id = {"uuid" : message.user_id}
+                serialized_data = json.dumps(user_id)
+
+                try:
+                    internal_response = requests.post(url, data=serialized_data, headers={"Content-Type": "application/json"})
+                    internal_response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    print(e)
+
 
             async def on_accept(self,
                                 message: data.Query,
@@ -89,6 +135,7 @@ class RecommenderAgent(pyxmas.Agent):
                     internal_response.raise_for_status()
                 except requests.exceptions.RequestException as e:
                     print(e)
+
             
             async def on_unclear(self,
                                 message: data.Query,

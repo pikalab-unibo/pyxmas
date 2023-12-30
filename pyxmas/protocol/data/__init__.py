@@ -92,12 +92,56 @@ class Explanation(Serializable):
 
 
 class Motivation(Serializable):
-    pass
 
+    def __init__(self, response):
+        self.response = response
+        self.list = response["ingredient"]
+        self.feedback = str(response["feedback"])
 
+        for i in self.list:
+            self.feedback += i + ","
+
+        self.feedback = self.feedback[:-1]
+
+    def __str__(self):
+        return self.feedback
+    
+    def __hash__(self):
+        return hash(str(self.feedback))
+    
+    def serialize(self) -> str:
+        return json.dumps(self.response)
+    
+    @classmethod
+    def parse(cls, input: str):
+        response = json.loads(input)
+        return cls(response)
+    
 class Feature(Serializable):
-    pass
 
+    def __init__(self, response):
+        self.response = response
+        self.list = response["ingredient"]
+        self.feedback = response["feedback"]
+
+        for i in self.list:
+            self.feedback += i + ","
+
+        self.feedback = self.feedback[:-1]
+
+    def __str__(self):
+        return self.feedback
+    
+    def __hash__(self):
+        return hash(self.feedback)
+
+    def serialize(self) -> str:
+        return json.dumps(self.response)
+    
+    @classmethod
+    def parse(cls, input: str):
+        response = json.loads(input)
+        return cls(response)
 
 class Types:
     @property

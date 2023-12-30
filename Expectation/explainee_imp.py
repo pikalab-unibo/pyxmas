@@ -24,9 +24,6 @@ class ExplaineeAgent(pyxmas.Agent):
             pass
 
         async def handle_recommendation(self, message: messages.RecommendationMessage) -> messages.ResponseToRecommendationMessage:
-
-            # Placeholder for implementation
-            # Determine the type of response to send based on the recommendation
             handler = f"handler-{self.user_id}@localhost"
             response = json.dumps(message.recommendation.response)
             msg = Message(to=handler,body=response)
@@ -44,12 +41,31 @@ class ExplaineeAgent(pyxmas.Agent):
 
                 response = json.loads(response)
 
-                feedback = response["feedback"]
+                feedback = response["feedbackDetailed"]
 
-                print(feedback)
-
+                # In the case of acceptance
                 if feedback == "Accepted":
                     return messages.AcceptMessage.create(query=message.query,recommendation=message.recommendation,to=self.recipient)
+
+                if feedback[0]["content"]:
+                    recipe_feedback = feedback[0]["content"][-1]
+                    print(f"Recipe feedback  {recipe_feedback}")
+                else:
+                    print("No recipe feedback was given")
+
+                if feedback[1]["content"]:
+                    explanation_feedback = feedback[1]["content"][-1]
+                    print(f"Explanation feedback  {explanation_feedback}")
+                else:
+                    print("No explanation feedback was given")
+
+                # These if statements are for recipe feedbacks
+                if recipe_feedback["feedback"] == "I don't like ":
+                    return messages.DisapproveMessage.create(query=message.query, recommendation=message.recommendation, motivation=data.Motivation(recipe_feedback), to=self.recipient)
+                
+                if recipe_feedback["feedback"] == "I'm allergic to ":
+                    return messages.CollisionMessage.create(query=message.query, recommendation=message.recommendation, feature=data.Feature(recipe_feedback), to=self.recipient)
+                
                 
 
         async def handle_comparison(self,

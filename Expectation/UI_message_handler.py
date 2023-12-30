@@ -86,14 +86,17 @@ async def getRecipe(request: Request):
 async def endNego(request: Request):
 
     print("Accepted")
+
     request_data = await request.json()
     user_id = request_data["uuid"]
-    recipient = aioxmpp.JID.fromstr(f"{user_id}@localhost") 
-    request_data["feedback"] = "Accepted" 
+    recipient = aioxmpp.JID.fromstr(f"{user_id}@localhost")  
+    request_data["feedbackDetailed"] = "Accepted"
 
     jid = aioxmpp.JID.fromstr(f"handler-{user_id}@localhost")
     security_layer = aioxmpp.make_security_layer('password', no_verify=True)
     client = aioxmpp.PresenceManagedClient(jid, security_layer)
+
+    receiver = XMPPReceiver(client)   
 
     async with client.connected() as stream:
         msg = aioxmpp.Message(
@@ -103,7 +106,6 @@ async def endNego(request: Request):
         msg.body[None] = json.dumps(request_data)
         print(f"Sent: {msg}")
         await stream.send(msg)
-
 
     # Serialize the request data and make an internal POST request
     serialized_data = json.dumps(request_data)
